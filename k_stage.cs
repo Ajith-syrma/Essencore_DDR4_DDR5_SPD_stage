@@ -25,9 +25,9 @@ namespace K1_Stages
         SqlConnection SFCS_db = new SqlConnection(ConfigurationManager.AppSettings["SFCS"].ToString());
         SqlConnection Barcode_db = new SqlConnection(ConfigurationManager.AppSettings["BARCODE"].ToString());
         SqlConnection Essencore_db = new SqlConnection(ConfigurationManager.AppSettings["ESSENCORE"].ToString());
-        public string CONFIG_NETWORKPATH = ConfigurationManager.AppSettings["NETWORKPATH"];
+        //public string CONFIG_NETWORKPATH = ConfigurationManager.AppSettings["NETWORKPATH"];
         private string CONFIG_ISONLINE = ConfigurationManager.AppSettings["ISONLINE"];
-       //DLL imports for window manipulation and DPI awareness
+        //DLL imports for window manipulation and DPI awareness
         [DllImport("user32.dll")]
         private static extern bool SetProcessDPIAware();
         //[DllImport("user32.dll")]
@@ -61,7 +61,7 @@ namespace K1_Stages
         public bool boardfail = true;
         public string[] infologindetails = { "", "" };
         // Timers for monitoring application state and file changes
-        private System.Windows.Forms.Timer monitorTimer;      
+        private System.Windows.Forms.Timer monitorTimer;
         private System.Windows.Forms.Timer fileMonitorTimer;
         public string fileNameg4 = DateTime.Now.ToString("yyyyMMdd");
         public string ssdmpFilePath = string.Empty;
@@ -76,7 +76,7 @@ namespace K1_Stages
         // Variables for K3 Stage and CDI
         public string emp_id = "";
         public string emp_name = "";
-        public string capacity = ""; 
+        public string capacity = "";
         public string stage = "";
         public string Gentype = "";
         private string Filename;
@@ -91,7 +91,7 @@ namespace K1_Stages
         #endregion
 
         #region UI_components
-        public k_stage(string stage_name, string Prduct_model, string App_N, string App_Pth,string fg, string emp_id, string emp_name, string f_name, string App_logpath)
+        public k_stage(string stage_name, string Prduct_model, string App_N, string App_Pth, string fg, string emp_id, string emp_name, string f_name, string App_logpath)
         {
             InitializeComponent();
             //variable initialization from parameters and configuration
@@ -218,21 +218,21 @@ namespace K1_Stages
 
         private void Form1_Shown(object sender, EventArgs e)
         {
-          if (App_Name == "SM2268XT2_MPTool.exe")
-          {
-            move_Formto_center();
-          }
+            if (App_Name == "SM2268XT2_MPTool.exe")
+            {
+                move_Formto_center();
+            }
 
-          else if (App_Name == "SSDMP.exe")
-          {
-            move_Formto_left();
-          }
+            else if (App_Name == "SSDMP.exe")
+            {
+                move_Formto_left();
+            }
 
-          else
-          {
-            move_Formto_center();
-          }
-            
+            else
+            {
+                move_Formto_center();
+            }
+
         }
 
 
@@ -277,7 +277,7 @@ namespace K1_Stages
         #endregion
 
         #region modeltypehandlerK3
-        public string Spd_Automation(string stageName, string capacity,string Filepath, string emp_id,string emp_name, string model, string Gentype, string Applic_Name)
+        public string Spd_Automation(string stageName, string capacity, string Filepath, string emp_id, string emp_name, string model, string Gentype, string Applic_Name)
         {
             try
             {
@@ -533,7 +533,7 @@ namespace K1_Stages
                         {
                             MessageBox.Show("File path in File load dialog box not found");
                             writestatusMessage("File path in File load dialog box not found", "Text box Not found");
-                            
+
                         }
                         Fill_Response_Data($"Firmware :{filepathGen4}");
 
@@ -776,8 +776,8 @@ namespace K1_Stages
                 bool checkstage = currentStage.Check_Curr_Stage(serial, currentStage.lbl_app_id.Text, currentStage.lblstagename.Text, currentStage.boardonline);
                 if (checkstage)
                 {
-                //    if (stage_count == "0" || stage_count == "Status not found")
-                //{
+                    //    if (stage_count == "0" || stage_count == "Status not found")
+                    //{
                     dbconnect.DbConnect(serial, model, capacity, station, testTime, status);
                     var displayColor = status.Equals("Pass", StringComparison.OrdinalIgnoreCase) ? Color.Green : Color.Red;
                     // Debug output
@@ -817,7 +817,8 @@ namespace K1_Stages
                         currentStage.lbl_result.BackColor = Color.Red;
                         currentStage.lbl_result.ForeColor = Color.White;
                         currentStage.Fill_Response_Data($"Serial no: {serial} is FAIL in K3 stage");
-                            
+                        currentStage.move_Formto_left();
+
                     }
 
                 }
@@ -841,6 +842,7 @@ namespace K1_Stages
                 {
                     writestatusMessage($"Serial No: {serial}-- Capacity: {capacity} status not found", "Stage Mismatch");
                     currentStage.Fill_Response_Data($"Serial No: {serial}-- Capacity: {capacity} Stage Mismatch");
+                    currentStage.move_Formto_left();
                     return;
                 }
 
@@ -851,6 +853,7 @@ namespace K1_Stages
                 writestatusMessage($"(Serial No: {serial}-- Capacity: {capacity} is fail -Serial Number not scanned Properly", "Board status");
                 popup.ShowDialogMessage($"Please scan the correct serial Number", Color.Red, Color.White, false);
                 currentStage.Fill_Response_Data($"(Serial No: {serial}-- Capacity: {capacity} is fail -Serial Number not scanned Properly");
+                currentStage.move_Formto_left();
                 return;
             }
 
@@ -1207,7 +1210,7 @@ namespace K1_Stages
 
                             bool allPass = serialnopass && firwarepass && modelnopass &&
                                   temperaturepass && healthstatpass && driveletterpass && diskSizePass;
-                            
+
 
                             if (allPass)
                             {
@@ -1220,6 +1223,7 @@ namespace K1_Stages
                                 lbl_result.Text = $"Serial no: {Serial_no} is Pass in K3-CDI stage";
                                 lbl_result.BackColor = Color.Green;
                                 lbl_result.ForeColor = Color.White;
+                                move_Formto_left();
 
                             }
                             else
@@ -1232,6 +1236,7 @@ namespace K1_Stages
                                 lbl_result.Text = $"Serial no: {Serial_no} is fail in CDI stage";
                                 lbl_result.BackColor = Color.Red;
                                 lbl_result.ForeColor = Color.White;
+                                move_Formto_left();
                             }
 
                             var record = new QcDataRecord
@@ -1466,6 +1471,7 @@ namespace K1_Stages
         private void SQL_Upload(string Sno, bool boardfail, string Result_Remarks)
         {
 
+
             try
             {
                 SFCS_db.Close();
@@ -1568,37 +1574,7 @@ namespace K1_Stages
 
 
 
-            try
-            {
-                string datefolder = DateTime.Now.ToString("ddMMyyyy");
 
-                if (!Directory.Exists(CONFIG_NETWORKPATH))
-                {
-                    Update_Error_in_Server("Error", "ERR-UPL-01",
-                        "Network Path [" + CONFIG_NETWORKPATH + "] is not Accessible. Please Check with IT.",
-                        "SQL Upload", "");
-                    //  MessageBox.Show("Network Path [" + CONFIG_NETWORKPATH + "] is not Accessible. Please Check with IT.");
-                    //  lbl_result.Text = "Network Path [" + CONFIG_NETWORKPATH + "] is not Accessible. Please Check with IT.";
-                    //  lbl_result.BackColor = Color.Red;
-                    //  lbl_result.ForeColor = Color.Yellow;
-                    this.Refresh();
-                    return;
-                }
-
-
-            }
-            catch (Exception ex)
-            {
-                Update_Error_in_Server("Error", "ERR-UPL-02",
-                    "Network Path [" + CONFIG_NETWORKPATH + "] is not Accessible. Please Check with IT.",
-                    "SQL Upload-Write Failure Network Path", "");
-                MessageBox.Show("Network Path [" + CONFIG_NETWORKPATH + "] is not Accessible. Please Check with IT.");
-                lbl_result.Text = "Network Path [" + CONFIG_NETWORKPATH + "] is not Accessible. Please Check with IT.";
-                lbl_result.BackColor = Color.Red;
-                lbl_result.ForeColor = Color.Yellow;
-                this.Refresh();
-                return;
-            }
         }
 
         private void Update_Error_in_Server(string errortype, string errorcode, string errordesc, string errorloc, string errorremarks)

@@ -26,9 +26,10 @@ namespace K1_Stages
         {
             try
             {
-                using (SqlCommand cmd = new SqlCommand("pro_update_result_stat", Barcode_db))
+                using (SqlCommand cmd = new SqlCommand("pro_update_result_stat", Essencore_db))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.AddWithValue("@Stage", "K3");
                     cmd.Parameters.AddWithValue("@serial_no", serial);
                     cmd.Parameters.AddWithValue("@model", model);
                     cmd.Parameters.AddWithValue("@capacity", capacity);
@@ -256,7 +257,7 @@ namespace K1_Stages
 
                 foreach (var record in records)
                 {
-                    using (SqlCommand cmd = new SqlCommand("pro_InsertQcData", Barcode_db))
+                    using (SqlCommand cmd = new SqlCommand("pro_InsertQcData", Essencore_db))
                     {
                         cmd.CommandType = CommandType.StoredProcedure;
 
