@@ -61,4 +61,10 @@ namespace K1_Stages
     {
         public string emp_id { get; set; }
     }
+
+    class scanned_dt_val
+    {
+        public string PCB_SNO { get; set; }
+        public string Fg_no { get; set; }  
+    }
 }

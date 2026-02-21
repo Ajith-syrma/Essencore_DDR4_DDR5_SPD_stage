@@ -66,8 +66,9 @@
             lbl_app_id.Name = "lbl_app_id";
             lbl_app_id.Size = new Size(104, 40);
             lbl_app_id.TabIndex = 4;
-            lbl_app_id.Text = "263";
+            lbl_app_id.Text = "260";
             lbl_app_id.TextAlign = ContentAlignment.MiddleCenter;
+            lbl_app_id.Click += lbl_app_id_Click;
             // 
             // lbl_hdr_app_id
             // 
@@ -283,9 +284,9 @@
             lbl_stage_load.ForeColor = Color.White;
             lbl_stage_load.Location = new Point(469, 9);
             lbl_stage_load.Name = "lbl_stage_load";
-            lbl_stage_load.Size = new Size(75, 68);
+            lbl_stage_load.Size = new Size(68, 68);
             lbl_stage_load.TabIndex = 1;
-            lbl_stage_load.Text = "K3";
+            lbl_stage_load.Text = "K1";
             // 
             // K1_load
             // 
@@ -315,7 +316,7 @@
             Controls.Add(label2);
             Controls.Add(cmb_stage);
             Name = "K1_load";
-            Text = "K3_CDI";
+            Text = "K1";
             Load += K1_load_Load;
             ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();

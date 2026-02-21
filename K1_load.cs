@@ -151,7 +151,7 @@ namespace K1_Stages
             {
 
                 string stageval = lbl_stage_load.Text;
-                string Product_model = cmb_prdctModel.Text=="M.2"?"1":"2";
+                string Product_model = cmb_prdctModel.Text == "M.2" ? "1" : "2";
                 var listNos = dbConnection.getcapacity(stageval, Product_model);
                 suppressCapacityEvent = true;
                 if (listNos != null && listNos.Count > 0)
@@ -242,6 +242,11 @@ namespace K1_Stages
         }
 
         private void K1_load_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void lbl_app_id_Click(object sender, EventArgs e)
         {
 
         }

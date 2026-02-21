@@ -131,9 +131,9 @@
             lblemp_id.BackColor = Color.White;
             lblemp_id.Font = new Font("Times New Roman", 11.25F, FontStyle.Bold);
             lblemp_id.ForeColor = Color.Navy;
-            lblemp_id.Location = new Point(591, 40);
+            lblemp_id.Location = new Point(578, 40);
             lblemp_id.Name = "lblemp_id";
-            lblemp_id.Size = new Size(101, 44);
+            lblemp_id.Size = new Size(109, 44);
             lblemp_id.TabIndex = 11;
             lblemp_id.TextAlign = ContentAlignment.MiddleCenter;
             // 
@@ -143,9 +143,9 @@
             lbl_date.BackColor = Color.White;
             lbl_date.Font = new Font("Times New Roman", 11.25F, FontStyle.Bold);
             lbl_date.ForeColor = Color.Navy;
-            lbl_date.Location = new Point(698, 38);
+            lbl_date.Location = new Point(694, 38);
             lbl_date.Name = "lbl_date";
-            lbl_date.Size = new Size(101, 44);
+            lbl_date.Size = new Size(114, 44);
             lbl_date.TabIndex = 10;
             lbl_date.TextAlign = ContentAlignment.MiddleCenter;
             // 
@@ -155,9 +155,9 @@
             lbldate.BackColor = Color.Navy;
             lbldate.Font = new Font("Times New Roman", 11.25F, FontStyle.Bold);
             lbldate.ForeColor = Color.White;
-            lbldate.Location = new Point(698, -1);
+            lbldate.Location = new Point(694, -1);
             lbldate.Name = "lbldate";
-            lbldate.Size = new Size(101, 44);
+            lbldate.Size = new Size(114, 44);
             lbldate.TabIndex = 9;
             lbldate.Text = "Date";
             lbldate.TextAlign = ContentAlignment.MiddleCenter;
@@ -168,9 +168,9 @@
             lbl_id.BackColor = Color.Navy;
             lbl_id.Font = new Font("Times New Roman", 11.25F, FontStyle.Bold);
             lbl_id.ForeColor = Color.White;
-            lbl_id.Location = new Point(588, -2);
+            lbl_id.Location = new Point(578, -2);
             lbl_id.Name = "lbl_id";
-            lbl_id.Size = new Size(101, 44);
+            lbl_id.Size = new Size(109, 44);
             lbl_id.TabIndex = 7;
             lbl_id.Text = "Emp ID";
             lbl_id.TextAlign = ContentAlignment.MiddleCenter;
@@ -211,7 +211,7 @@
             lbl_app_id.Name = "lbl_app_id";
             lbl_app_id.Size = new Size(101, 44);
             lbl_app_id.TabIndex = 4;
-            lbl_app_id.Text = "263";
+            lbl_app_id.Text = "260";
             lbl_app_id.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // lbl_hdr_app_id
@@ -230,9 +230,9 @@
             // pictureBox3
             // 
             pictureBox3.Image = (Image)resources.GetObject("pictureBox3.Image");
-            pictureBox3.Location = new Point(805, 0);
+            pictureBox3.Location = new Point(814, 0);
             pictureBox3.Name = "pictureBox3";
-            pictureBox3.Size = new Size(153, 76);
+            pictureBox3.Size = new Size(144, 76);
             pictureBox3.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox3.TabIndex = 2;
             pictureBox3.TabStop = false;
@@ -254,9 +254,9 @@
             lblstagename.ForeColor = Color.White;
             lblstagename.Location = new Point(452, 8);
             lblstagename.Name = "lblstagename";
-            lblstagename.Size = new Size(75, 68);
+            lblstagename.Size = new Size(68, 68);
             lblstagename.TabIndex = 1;
-            lblstagename.Text = "K3";
+            lblstagename.Text = "K1";
             // 
             // lbl_qty
             // 
@@ -386,7 +386,7 @@
             Controls.Add(lbl_filepathvalue);
             Controls.Add(pictureBox1);
             Name = "k_stage";
-            Text = "K3_CDI STAGE";
+            Text = "K1";
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)pic_status).EndInit();
             app_name_lbl.ResumeLayout(false);

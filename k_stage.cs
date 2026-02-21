@@ -5,15 +5,20 @@ using FlaUI.Core.Tools;
 using FlaUI.Core.WindowsAPI;
 using FlaUI.UIA3;
 using Microsoft.Office.Interop.Excel;
+using Microsoft.VisualBasic.Logging;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.Drawing;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using static System.Collections.Specialized.BitVector32;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Application = FlaUI.Core.Application;
-
+using Font = System.Drawing.Font;
 using Point = System.Drawing.Point;
 namespace K1_Stages
 {
@@ -23,8 +28,9 @@ namespace K1_Stages
         //Declaration from  App config 
         DbConnection dbConnection = new DbConnection();
         SqlConnection SFCS_db = new SqlConnection(ConfigurationManager.AppSettings["SFCS"].ToString());
-        SqlConnection Barcode_db = new SqlConnection(ConfigurationManager.AppSettings["BARCODE"].ToString());
-        SqlConnection Essencore_db = new SqlConnection(ConfigurationManager.AppSettings["ESSENCORE"].ToString());
+
+
+
         //public string CONFIG_NETWORKPATH = ConfigurationManager.AppSettings["NETWORKPATH"];
         private string CONFIG_ISONLINE = ConfigurationManager.AppSettings["ISONLINE"];
         //DLL imports for window manipulation and DPI awareness
@@ -57,8 +63,9 @@ namespace K1_Stages
         public string[] infosfromprint = { "", "", "" }; // FG, Sno, WO
         public string[] infosfromboard = { "", "" };// WO,RW
         public string yearinfofromprint = "";
-        public bool boardonline = false;
+        public bool boardonline = true;
         public bool boardfail = true;
+        public int boardfailcount = 0;
         public string[] infologindetails = { "", "" };
         // Timers for monitoring application state and file changes
         private System.Windows.Forms.Timer monitorTimer;
@@ -85,6 +92,8 @@ namespace K1_Stages
         private string App_Name;
         private string App_Path;
         private string Fg;
+        public string Pcb_Serialno = "";
+        public string customer_Fg = "";
         private string Firmware_Name;
         private bool isHandlingChange = false;
         bool suppressCapacityEvent = false;
@@ -115,6 +124,10 @@ namespace K1_Stages
             this.MaximizeBox = false;
             this.MinimizeBox = false;
 
+
+            //Start check sfcs 
+            startchecksfcs();
+
             k1_stage_test(stage_name, Prduct_model, App_N, fg, emp_id, emp_name, f_name);
             this.Show();
             this.TopMost = true;
@@ -136,10 +149,18 @@ namespace K1_Stages
         }
 
 
-        private void Txt_SN_KeyDown(object sender, KeyEventArgs e)
+        private void Txt_SN_KeyDown(object sender, KeyEventArgs e)       
         {
             if (e.KeyCode == Keys.Enter)
             {
+                lbl_result.BackColor = SystemColors.ActiveCaption;
+                lbl_result.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+                lbl_result.Location = new Point(493, 179);
+                lbl_result.Name = "lbl_result";
+                lbl_result.Size = new Size(456, 274);
+                lbl_result.TabIndex = 23;
+                lbl_result.Text = "TEST STATUS";
+                
 
                 var scannedData = "";
 
@@ -149,27 +170,88 @@ namespace K1_Stages
                 }
                 else if (product_Model == "SSD_SATA")
                 {
-                    scannedData = dbConnection.getpcbserialno(txt_SN.Text.Trim().ToUpper());
+                    //scannedData = dbConnection.getpcbserialno(txt_SN.Text.Trim().ToUpper());
+                    scannedData = txt_SN.Text.Trim().ToUpper();
                 }
                 else
                 {
                     scannedData = "1";
                 }
 
+                if (!scannedData.StartsWith("ECH"))
+                {
+                    Pcb_Serialno = string.Empty;
+                    customer_Fg = string.Empty;
+                    var scanned_dtval = dbConnection.scanned_dtval(scannedData, product_Model);
+                    foreach (var fg_detail in scanned_dtval)
+                    {
+                        Pcb_Serialno = fg_detail.PCB_SNO;
+                        customer_Fg = fg_detail.Fg_no;
+                    }
+
+                    
+                    if (!string.IsNullOrEmpty(customer_Fg) && customer_Fg  == Fg)
+                    {
+                        if (!string.IsNullOrEmpty(Pcb_Serialno) || Pcb_Serialno! == "0")
+                        {
+                           
+                            if (Check_Curr_Stage(Pcb_Serialno, lbl_app_id.Text, lblstagename.Text, boardonline))
+                            {
+                                move_Formto_right();
+                                MessageBox.Show("Please scan the serial Number on the OUT0 of the MP Tool");
+                            }
+                            else
+                            {
+                                move_Formto_left();
+                                txt_SN.Clear();
+                                MessageBox.Show("Please scan the Next serial Number on the SFCS Application");
+                            }
+
+                        }
+                        else
+                        {
+                            lbl_result.BackColor = Color.Yellow;
+                            lbl_result.ForeColor = Color.Black;
+                            lbl_result.Text = "No data found for the provided customer Serial Number";
+                            txt_SN.Clear();
+                        }
+
+                    }
+
+                    else if (customer_Fg == "0")
+                    {
+                        lbl_result.BackColor = Color.Yellow;
+                        lbl_result.ForeColor = Color.Black;
+                        lbl_result.Text = "No data found for the provided customer Serial Number";
+                        txt_SN.Clear();
+                    }
+                    else if (string.IsNullOrEmpty(customer_Fg))
+                    {
+                        lbl_result.BackColor = Color.Yellow;
+                        lbl_result.ForeColor = Color.Black;
+                        lbl_result.Text = "Network error could not access server Please contact IT Administrator";
+                        txt_SN.Clear();
+                    }
+                    else
+                    {
+                        lbl_result.BackColor = Color.Yellow;
+                        lbl_result.ForeColor = Color.Black;
+                        lbl_result.Text = "Scanned FG-Serial and Selected Fg different";
+                        txt_SN.Clear();
+
+                    }
 
 
-                //if (Check_Curr_Stage(scannedData, lbl_app_id.Text, lblstagename.Text, boardonline))
-                //{
-                move_Formto_right();
-                MessageBox.Show("Please scan the serial Number on the OUT0 of the MP Tool");
-                //}
-                //else
-                //{
-                //    move_Formto_left();
-                //    txt_SN.Clear();
-                //    MessageBox.Show("Please scan the Next serial Number on the IN0 of the MP Tool");
+                }
+                else
+                {
+                    lbl_result.BackColor = Color.Yellow;
+                    lbl_result.ForeColor = Color.Black;
+                    lbl_result.Text = "Please scan Customer Serial Number";
+                    txt_SN.Clear();
 
-                //}
+                }
+
             }
             else
             {
@@ -250,7 +332,7 @@ namespace K1_Stages
             emp_id = employe_id;
             emp_name = employee_name;
             Filename = f;
-            Fill_Response_Data("K3 Stage Test");
+            Fill_Response_Data("K1 Stage Test");
 
             string modelname = dbConnection.getmodel(capacity);
             Gentype = dbConnection.getgentype(capacity);
@@ -590,12 +672,19 @@ namespace K1_Stages
             {
                 if (ex.Message.Contains("An error occurred trying to start process"))
                 {
-                    MessageBox.Show("Open the Application in Administartor");
+                    //MessageBox.Show("Open the Application in Administartor");
+                    lbl_result.Text = "Open the Application in Administartor";
+                    lbl_result.ForeColor = Color.Black;
+                    lbl_result.BackColor = Color.Yellow;
+
                     return null;
                 }
                 else
                 {
-                    MessageBox.Show("Error in automation: " + ex.Message);
+                    lbl_result.Text = "Error in Automation \n" +
+                                      "Restart the Application";
+                    lbl_result.ForeColor = Color.Black;
+                    lbl_result.BackColor = Color.Yellow;
                     return null;
                 }
 
@@ -696,6 +785,8 @@ namespace K1_Stages
                                               string Gtype, string fgno, string stage_N, string app_name, string app_path,
                                               string firmware_name, k_stage currentStage)
         {
+
+
             bool boardfail = true;
             string status = string.Empty;
             string testTime = string.Empty;
@@ -708,7 +799,7 @@ namespace K1_Stages
                 Console.WriteLine("Log file not found.");
                 return;
             }
-            if (Gtype == "Gen4x4")
+            if (app_name == "SM2268XT2_MPTool.exe")
             {
                 string lastLine = File.ReadLines(filePath).LastOrDefault();
                 string pattern = @"^(\S+)\s+(\S+)\s+(\S+\s+\S+)\s+(\S+\s+\S+)\s+(\S+)\s+(\S+)\s+(.+)$";
@@ -716,7 +807,7 @@ namespace K1_Stages
 
                 if (!m.Success)
                     return;
-                capacity = fgno; station = "K3";
+                capacity = fgno; station = "K1";
                 string port = m.Groups[2].Value;
                 string start = m.Groups[3].Value;
                 string end = m.Groups[4].Value;
@@ -773,12 +864,15 @@ namespace K1_Stages
             if ((ser_len == 14 || ser_len == 17) && (serial.StartsWith("ES") || (serial.StartsWith("EN"))))
             {
                 //var stage_count = dbconnect.get_serial_dup(serial, model);
-                bool checkstage = currentStage.Check_Curr_Stage(serial, currentStage.lbl_app_id.Text, currentStage.lblstagename.Text, currentStage.boardonline);
-                if (checkstage)
+                //bool checkstage = currentStage.Check_Curr_Stage(serial, currentStage.lbl_app_id.Text, currentStage.lblstagename.Text, currentStage.boardonline);
+
+                if (serial.Trim()== currentStage.txt_SN.Text.Trim())
                 {
                     //    if (stage_count == "0" || stage_count == "Status not found")
                     //{
-                    dbconnect.DbConnect(serial, model, capacity, station, testTime, status);
+                    //dbconnect.DbConnect1(serial, model, capacity, station, testTime, status);
+                    dbconnect.DbConnect2(serial, model, capacity, station, testTime, status,currentStage.Pcb_Serialno);
+
                     var displayColor = status.Equals("Pass", StringComparison.OrdinalIgnoreCase) ? Color.Green : Color.Red;
                     // Debug output
                     //System.Diagnostics.Debug.WriteLine("---- Last Valid DUT Result ----");
@@ -801,23 +895,50 @@ namespace K1_Stages
                     if (status.Equals("Pass", StringComparison.OrdinalIgnoreCase))
                     {
                         //var qc = new k_stage(stage_N, Gtype,app_name,app_path,fgno,emp_id,emp_name,firmware_name, filePath);
-                        writestatusMessage($"(Serial No: {serial}-- Capacity: {capacity} is Pass in K3 and moved for Qc", "Board status");
-                        currentStage.Fill_Response_Data($"(Serial No: {serial}-- Capacity: {capacity} is Pass in K3 and on CDI Stage");
-                        currentStage.qcstage_validation(serial, capacity, emp_id, emp_name);
-                        return;
+                        boardfail = false;
+                        currentStage.SQL_Upload(serial, boardfail, "Passed at K1");
+                        currentStage.lbl_result.Text = $"Serial no: {serial} is Pass in K1 stage";
+                        currentStage.lbl_result.BackColor = Color.Green;
+                        currentStage.lbl_result.ForeColor = Color.White;
+                        currentStage.txt_SN.Clear();
+                        currentStage.Fill_Response_Data($"Serial no: {serial} is Pass in K1 stage");
+                        popup.ShowDialogMessage($"{serial} -- {status} at K1", displayColor, Color.White, false);
+                        writestatusMessage($"(Serial No: {serial}-- Capacity: {capacity} is Pass in K1", "Board status");
+                        currentStage.Fill_Response_Data($"(Serial No: {serial}-- Capacity: {capacity} is Pass in K1");
+
+                        if (currentStage.App_Name == "SM2268XT2_MPTool.exe")
+                        {
+                            currentStage.move_Formto_center();
+                        }
+                        else
+                        {
+                            currentStage.move_Formto_left();
+                        }
+
+                            //currentStage.qcstage_validation(serial, capacity, emp_id, emp_name);
+                            return;
                     }
                     else
                     {
-                        popup.ShowDialogMessage($"{serial} -- {status} at K3", displayColor, Color.White, false);
-                        writestatusMessage($"(Serial No: {serial}-- Capacity: {capacity} is fail in K3", "Board status");
-                        //var instance = new k_stage(stage_N, Gtype, app_name, app_path, fgno, emp_id, emp_name, filePath, firmware_name);
                         boardfail = true;
-                        currentStage.SQL_Upload(serial, boardfail, "Failed at K3");
-                        currentStage.lbl_result.Text = $"Serial no: {serial} is FAIL in K3 stage";
+                        currentStage.SQL_Upload(serial, boardfail, "Failed at K1");
+                        currentStage.lbl_result.Text = $"Serial no: {serial} is FAIL in K1 stage";
                         currentStage.lbl_result.BackColor = Color.Red;
                         currentStage.lbl_result.ForeColor = Color.White;
-                        currentStage.Fill_Response_Data($"Serial no: {serial} is FAIL in K3 stage");
-                        currentStage.move_Formto_left();
+                        currentStage.txt_SN.Clear();
+                        currentStage.Fill_Response_Data($"Serial no: {serial} is FAIL in K1 stage");
+                        popup.ShowDialogMessage($"{serial} -- {status} at K1", displayColor, Color.White, false);
+                        writestatusMessage($"(Serial No: {serial}-- Capacity: {capacity} is fail in K1", "Board status");
+                        //var instance = new k_stage(stage_N, Gtype, app_name, app_path, fgno, emp_id, emp_name, filePath, firmware_name);
+
+                        if (currentStage.App_Name == "SM2268XT2_MPTool.exe")
+                        {
+                            currentStage.move_Formto_center();
+                        }
+                        else
+                        {
+                            currentStage.move_Formto_left();
+                        }
 
                     }
 
@@ -841,8 +962,13 @@ namespace K1_Stages
                 else
                 {
                     writestatusMessage($"Serial No: {serial}-- Capacity: {capacity} status not found", "Stage Mismatch");
-                    currentStage.Fill_Response_Data($"Serial No: {serial}-- Capacity: {capacity} Stage Mismatch");
+                    currentStage.Fill_Response_Data($"Serial No: {serial}-- Capacity: {capacity} SerialNumber Mismatch");
+                    currentStage.lbl_result.Text = $"Serial No: {serial}-- Capacity: {capacity} SerialNumber Mismatch\n" +
+                                                   $"Please check the scanned serial Number";
+                    currentStage.lbl_result.ForeColor=Color.White;
+                    currentStage.lbl_result.BackColor=Color.Red;
                     currentStage.move_Formto_left();
+                    currentStage.txt_SN.Clear();
                     return;
                 }
 
@@ -853,7 +979,11 @@ namespace K1_Stages
                 writestatusMessage($"(Serial No: {serial}-- Capacity: {capacity} is fail -Serial Number not scanned Properly", "Board status");
                 popup.ShowDialogMessage($"Please scan the correct serial Number", Color.Red, Color.White, false);
                 currentStage.Fill_Response_Data($"(Serial No: {serial}-- Capacity: {capacity} is fail -Serial Number not scanned Properly");
+                currentStage.lbl_result.Text = $"Please scan the correct serial Number";
+                currentStage.lbl_result.ForeColor = Color.White;
+                currentStage.lbl_result.BackColor = Color.Red;
                 currentStage.move_Formto_left();
+                currentStage.txt_SN.Clear();
                 return;
             }
 
@@ -865,53 +995,53 @@ namespace K1_Stages
         private void Fill_Response_Data(string datarep)
         {
             txt_live_stat.AppendText(
-                DateTime.Now.ToString("HH:mm:ss.fff") + " : " + datarep + "\n"
-            );
+                DateTime.Now.ToString("HH:mm:ss.fff") + " : " + datarep + "\n");
 
             txt_live_stat.SelectionStart = txt_live_stat.TextLength;
             txt_live_stat.ScrollToCaret();
 
-            base.Update();
+            //base.Update();
 
-            System.Windows.Forms.Application.DoEvents();
+            //System.Windows.Forms.Application.DoEvents();
         }
 
 
         #region QC_Valdiation
 
 
-        public void qcstage_validation(string serialno, string capacity, string emp_id, string emp_name)
-        {
-            writestatusMessage($"Serial No: {serialno}-- Capacity: {capacity} is pass IN K3 and in Qc stage", "Board status");
-            Fill_Response_Data($"Serial No: {serialno}-- Capacity: {capacity} is pass in K3 and in Qc stage");
-            var fg_num = dbConnection.getfgname(serialno);
-            if ((!string.IsNullOrEmpty(fg_num)))
-            {
-                writestatusMessage($"Serialno :{serialno}-- Fgno :{fg_num}", "FgName-SerialNumber");
-                var fg_details_list = dbConnection.getfgdetails(fg_num);
-                foreach (var fg_detail in fg_details_list)
-                {
-                    var Model = fg_detail.Model;
-                    var Firmware = fg_detail.Firmware;
-                    var Disksize = fg_detail.Disksize;
-                    writestatusMessage($"Serialno :{serialno}-- Fgno :{fg_num}--Model :{Model}--Firmware :{Firmware}--Disksize :{Disksize}", "Fg details");
-                    Fill_Response_Data("----------Values for reference from the database---------");
-                    Fill_Response_Data($"Serialno :{serialno}-- Fgno :{fg_num}--Model :{Model}--Firmware :{Firmware}--Disksize :{Disksize}");
-                    processScannedText(Model, Firmware, Disksize, serialno, fg_num, emp_id, emp_name);
+        //public void qcstage_validation(string serialno, string capacity, string emp_id, string emp_name)
+        //{
+        //    writestatusMessage($"Serial No: {serialno}-- Capacity: {capacity} is pass IN K3 and in Qc stage", "Board status");
+        //    Fill_Response_Data($"Serial No: {serialno}-- Capacity: {capacity} is pass in K3 and in Qc stage");
+        //    var fg_num = dbConnection.getfgname(serialno);
+        //    fg_num = "ECH3ESN00077";
+        //    if ((!string.IsNullOrEmpty(fg_num)))
+        //    {
+        //        writestatusMessage($"Serialno :{serialno}-- Fgno :{fg_num}", "FgName-SerialNumber");
+        //        var fg_details_list = dbConnection.getfgdetails(fg_num);
+        //        foreach (var fg_detail in fg_details_list)
+        //        {
+        //            var Model = fg_detail.Model;
+        //            var Firmware = fg_detail.Firmware;
+        //            var Disksize = fg_detail.Disksize;
+        //            writestatusMessage($"Serialno :{serialno}-- Fgno :{fg_num}--Model :{Model}--Firmware :{Firmware}--Disksize :{Disksize}", "Fg details");
+        //            Fill_Response_Data("----------Values for reference from the database---------");
+        //            Fill_Response_Data($"Serialno :{serialno}-- Fgno :{fg_num}--Model :{Model}--Firmware :{Firmware}--Disksize :{Disksize}");
+        //            processScannedText(Model, Firmware, Disksize, serialno, fg_num, emp_id, emp_name);
 
-                }
-
-
-            }
-            else
-            {
-
-                MessageBox.Show("No Fg details Found for the provided Serial number");
-                return;
-            }
+        //        }
 
 
-        }
+        //    }
+        //    else
+        //    {
+
+        //        MessageBox.Show("No Fg details Found for the provided Serial number");
+        //        return;
+        //    }
+
+
+        //}
         private bool serialnopass = true;
         private bool firwarepass = true;
         private bool modelnopass = true;
@@ -923,374 +1053,374 @@ namespace K1_Stages
 
 
 
-        public void processScannedText(string Modeldb, string firmwaredb, string Disksizedb, string serialnodb, string fgnodb,
-                                       string emp_iddb, string emp_namedb)
-        {
-            SetProcessDPIAware();
-
-            string exePath = ConfigurationManager.AppSettings["exePath"];
-            if (!File.Exists(exePath))
-            {
-                MessageBox.Show("Application file not found at path: " + exePath);
-                writestatusMessage($"CrystalDisk App path not found", "Application Not found");
-                return;
-            }
-            string processName = Path.GetFileNameWithoutExtension(exePath);
-            string savePath = ConfigurationManager.AppSettings["savePath"];
-
-            if (!Directory.Exists(Path.GetDirectoryName(savePath)))
-            {
-                writestatusMessage($"CrystalDisk file path not found", "File Not found");
-                Directory.CreateDirectory(Path.GetDirectoryName(savePath));
-            }
-
-            try
-            {
-                Process crystalprocess = null;
-                ManualResetEvent loadingFormReady = new ManualResetEvent(false);
-                LoadingForm loadingForm = null;
-
-                Thread loadingThread = new Thread(() =>
-                {
-                    loadingForm = new LoadingForm();
-                    loadingForm.Load += (s, e) => loadingFormReady.Set();  // Signal that form is ready
-                    System.Windows.Forms.Application.Run(loadingForm);
-                });
-                loadingThread.SetApartmentState(ApartmentState.STA);
-                loadingThread.Start();
-
-                // Wait for the loading form to be fully loaded
-                loadingFormReady.WaitOne();
-                Fill_Response_Data("Loading QC Application");
-
-
-                try
-                {
-                    var existingProcess = Process.GetProcessesByName(processName).FirstOrDefault();
-
-                    if (existingProcess == null)
-                    {
-                        crystalprocess = Process.Start(exePath);
-
-                        // Wait for window (up to 30s)
-                        int timeout = 30000;
-                        int waited = 0;
-                        int interval = 500;
-
-
-                        while (crystalprocess.MainWindowHandle == IntPtr.Zero && waited < timeout)
-                        {
-                            Thread.Sleep(interval);
-                            waited += interval;
-                            crystalprocess.Refresh();
-
-                        }
-
-                        if (crystalprocess.MainWindowHandle == IntPtr.Zero)
-                        {
-                            writestatusMessage("CrystalDiskInfo UI window not ready", "Timeout waiting for window");
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        crystalprocess = existingProcess;
-                    }
-                }
-                finally
-                {
-
-                    // loadingForm.Invoke(new System.Action(() => loadingForm.Close()));
-                    //  CLOSE LOADING UI
-
-                    if (loadingForm != null && loadingForm.IsHandleCreated)
-                    {
-                        loadingForm.Invoke(new System.Action(() =>
-                        {
-                            loadingForm.Close();
-                        }));
-                    }
-
-
-                }
-
-                //  Continue with the rest of your code
-                using (var automation = new UIA3Automation())
-                {
-                    var desktop = automation.GetDesktop();
-                    Thread.Sleep(500);
-
-                    var processes = Process.GetProcesses()
-                        .Where(p => !string.IsNullOrEmpty(p.MainWindowTitle) && p.MainWindowTitle.Contains("CrystalDiskInfo"));
-
-                    foreach (var process in processes)
-                    {
-                        try
-                        {
-                            var app = FlaUI.Core.Application.Attach(process);
-                            var mainWindow = app.GetMainWindow(automation);
-
-                            if (mainWindow == null)
-                            {
-                                writestatusMessage($"CrystalDisk App window not found", "App window Not found");
-                                continue;
-                            }
-
-                            writestatusMessage($"CrystalDisk App window  found", "App window  found");
-
-                            // Maximize and focus the window
-                            ShowWindow(mainWindow.Properties.NativeWindowHandle.ValueOrDefault, SW_MAXIMIZE);
-                            mainWindow.Focus();
-                            Thread.Sleep(500);
-
-                            // Optionally click the disk button with AutomationId "1021"
-                            Keyboard.Type(VirtualKeyShort.F6);
-                            writestatusMessage("F6 button clicked for refresh", "F6 button click");
-                            Thread.Sleep(5000); // Let it refresh
-
-                            var targetButton = mainWindow.FindFirstDescendant(cf => cf.ByAutomationId("1021"))?.AsButton();
-                            if (targetButton == null)
-                            {
-                                Console.WriteLine("Button Not found");
-                                writestatusMessage("Disk button Not found for Essencore disk", "Disk button not found for click");
-
-                            }
-
-                            targetButton.Invoke();
-                            Thread.Sleep(700);
-                            writestatusMessage("Disk button clicked for Essencore disk", "Disk button click");
-                            var editElement_Mod = mainWindow.FindFirstDescendant(cf =>
-                                                  cf.ByAutomationId("1012").And(cf.ByControlType(ControlType.Edit)));
-
-                            if (editElement_Mod == null)
-                            {
-                                Console.WriteLine("Edit control not found.");
-                                writestatusMessage("Model label not found", "Model label not found");
-                                return;
-                            }
-                            writestatusMessage("Model label  found", "Model label  found");
-
-                            // Try ValuePattern
-                            var valuePattern = editElement_Mod.Patterns.Value.PatternOrDefault;
-                            if (valuePattern != null)
-                            {
-                                currentText = valuePattern.Value;
-                                Console.WriteLine($"Edit control text: {currentText}");
-                                writestatusMessage($"Model text: {currentText}", "Model label found");
-                            }
-                            else
-                            {
-                                Console.WriteLine("ValuePattern is not supported for this Edit control.");
-
-                            }
-
-                            var Model_val = currentText;
-                            if (Model_val != null)
-                            {
-
-
-                                // Regex: captures everything before the size and then the size itself
-                                var match1 = Regex.Match(Model_val, @"^(.*)\s(\d+(?:\.\d+)?)\s(GB|MB)$");
-
-                                if (match1.Success)
-                                {
-                                    Model_name = match1.Groups[1].Value.Trim();       // "ESSENCORE NVME GEN3 SSD"
-                                    Disk_size = match1.Groups[2].Value + " GB";       // "256.0 GB"
-                                    writestatusMessage($"Model name: {Model_name} DiskSize {Disk_size}", "Model value found");
-                                    Console.WriteLine($"Name: {Model_name}");
-                                    Console.WriteLine($"Size: {Disk_size}");
-                                }
-                                else
-                                {
-                                    Console.WriteLine("No match.");
-                                }
-
-
-                            }
-                            var health_stat_btn = mainWindow.FindFirstDescendant(cf =>
-                                        cf.ByAutomationId("1047").And(cf.ByControlType(ControlType.Button)));
-                            var temp_stat_btn = mainWindow.FindFirstDescendant(cf =>
-                                        cf.ByAutomationId("1049").And(cf.ByControlType(ControlType.Button)));
-
-                            if (health_stat_btn == null && temp_stat_btn == null)
-                            {
-                                Console.WriteLine("health status and temp_status not found.");
-                                writestatusMessage("health status and temp_status not found", "Heath & Temp status not found");
-                                return;
-                            }
-
-                            Health_status = health_stat_btn.Name.ToString();
-                            Temp_status = temp_stat_btn.Name.ToString();
-
-
-                            Match Temp_match = Regex.Match(Temp_status, @"\d+");
-
-                            if (Temp_match.Success)
-                            {
-                                Temp_val = int.Parse(Temp_match.Value);
-                                Console.WriteLine(Temp_val); // Output: 36
-                            }
-                            else
-                            {
-                                Console.WriteLine("No number found.");
-                            }
-
-                            var Firmware_element = mainWindow.FindFirstDescendant(cf =>
-                                cf.ByAutomationId("1014").And(cf.ByControlType(FlaUI.Core.Definitions.ControlType.Document)));
-                            var serialno_element = mainWindow.FindFirstDescendant(cf =>
-                                cf.ByAutomationId("1015").And(cf.ByControlType(FlaUI.Core.Definitions.ControlType.Document)));
-                            var disk_letr_element = mainWindow.FindFirstDescendant(cf =>
-                                cf.ByAutomationId("1031").And(cf.ByControlType(FlaUI.Core.Definitions.ControlType.Document)));
-
-                            if (Firmware_element == null && serialno_element == null && disk_letr_element == null)
-                            {
-                                Console.WriteLine("Firmware & Serialno & Disk letter control not found.");
-                                return;
-                            }
-
-                            // 2. Try getting Text using TextPattern
-                            var txt_Pattern_Firmware = Firmware_element.Patterns.Text.PatternOrDefault;
-                            var txt_Pattern_Serialno = serialno_element.Patterns.Text.PatternOrDefault;
-                            var txt_Pattern_Diskltr = disk_letr_element.Patterns.Text.PatternOrDefault;
-                            if (txt_Pattern_Firmware == null && txt_Pattern_Serialno == null && txt_Pattern_Diskltr == null)
-                            {
-                                Console.WriteLine("Serial no & Firmware & Diskletter not found.");
-                                return;
-                            }
-                            Serial_no = txt_Pattern_Serialno.DocumentRange.GetText(-1);
-                            Firmware_val = txt_Pattern_Firmware.DocumentRange.GetText(-1);
-                            diskletter = txt_Pattern_Diskltr.DocumentRange.GetText(-1);
-                            writestatusMessage($"Serial_nos: {Serial_no}--Firmware_val:{Firmware_val}--Diskletter :{diskletter} ", "Heath & Temp status found");
-
-                            var Health_match = Regex.Match(Health_status, @"^(.*)\s+(\d+)\s*%?$", RegexOptions.Singleline);
-
-                            if (Health_match.Success)
-                            {
-                                Health_stat = Health_match.Groups[1].Value.Trim();
-                                Health_value = int.Parse(Health_match.Groups[2].Value);
-                                Console.WriteLine($"Status: {Health_stat}");
-                                Console.WriteLine($"Value: {Health_value}");
-                                writestatusMessage($"Health status: {Health_stat}--Temp_status:{Health_value}", "Heath & Temp status found");
-                            }
-                            else
-                            {
-                                Console.WriteLine("Pattern not matched.");
-                            }
-
-                            bool serialnopass = false, firwarepass = false, modelnopass = false,
-                            temperaturepass = false, healthstatpass = false, driveletterpass = false, diskSizePass = false;
-
-                            if (!string.IsNullOrWhiteSpace(diskletter))
-                            {
-
-                                driveletterpass = false;
-                            }
-                            else
-                            {
-
-                                diskletter = "Null";
-                                driveletterpass = true;
-                            }
-                            serialnopass = Serial_no.Trim() == serialnodb;
-                            firwarepass = Firmware_val.Trim() == firmwaredb;
-                            modelnopass = Model_name.Equals(Modeldb.Trim(), StringComparison.OrdinalIgnoreCase);
-                            temperaturepass = (Temp_val > 25) && (Temp_val < 70);
-                            healthstatpass = Health_stat.Equals("Good", StringComparison.OrdinalIgnoreCase) && Health_value > 80;
-                            diskSizePass = Disk_size.Equals(Disksizedb.Trim());
-
-                            Fill_Response_Data($"Serial_no    :{Serial_no.Trim()}--------{serialnopass}");
-                            Fill_Response_Data($"Firmware_no  :{Firmware_val.Trim()}-----{firwarepass}");
-                            Fill_Response_Data($"Model Name   :{Model_name.Trim()}-------{modelnopass}");
-                            Fill_Response_Data($"Temperature  :{Temp_val.ToString()}-----{temperaturepass}");
-                            Fill_Response_Data($"Health Status:{Health_stat.ToString()}--{healthstatpass}");
-                            Fill_Response_Data($"Disk Size    :{Disk_size.ToString()}--{diskSizePass}");
-
-
-
-
-                            bool allPass = serialnopass && firwarepass && modelnopass &&
-                                  temperaturepass && healthstatpass && driveletterpass && diskSizePass;
-
-
-                            if (allPass)
-                            {
-
-                                board_status = "PASS";
-                                writestatusMessage($"Serial no: {Serial_no} is Pass", "Final QC status");
-                                Fill_Response_Data($"Serial no: {Serial_no} is Pass at K3 and CDI Stage");
-                                SQL_Upload(Serial_no, false, "Passed at K3&QC");
-                                popup.ShowDialogMessage($"{Serial_no} -- {board_status} at QC Testing", Color.Green, Color.White, true);
-                                lbl_result.Text = $"Serial no: {Serial_no} is Pass in K3-CDI stage";
-                                lbl_result.BackColor = Color.Green;
-                                lbl_result.ForeColor = Color.White;
-                                move_Formto_left();
-
-                            }
-                            else
-                            {
-                                board_status = "FAIL";
-                                writestatusMessage($"Serial no: {Serial_no} is Fail", "Final QC status");
-                                Fill_Response_Data($"Serial no: {Serial_no} is Fail at CDI Stage");
-                                SQL_Upload(Serial_no, true, "Failed at QC");
-                                popup.ShowDialogMessage($"{Serial_no} -- {board_status} at QC Testing", Color.Red, Color.White, false);
-                                lbl_result.Text = $"Serial no: {Serial_no} is fail in CDI stage";
-                                lbl_result.BackColor = Color.Red;
-                                lbl_result.ForeColor = Color.White;
-                                move_Formto_left();
-                            }
-
-                            var record = new QcDataRecord
-                            {
-
-                                emp_id = emp_iddb,
-                                emp_name = emp_namedb,
-                                Fg_no = fgnodb,
-                                SerialNumber = Serial_no,
-                                Firmware = Firmware_val,
-                                Temperature = Temp_val,
-                                HealthStatus = Health_status,
-                                ModelNumber = Model_name,
-                                DriveLetter = diskletter,
-                                DiskSize = Disk_size,
-                                boardstatus = board_status
-                            };
-
-
-                            List<QcDataRecord> records = new List<QcDataRecord> { record };
-
-                            // Pass the list to the upload function
-                            dbConnection.uploadresult(records);
-
-
-                            try
-                            {
-                                if (crystalprocess != null && !crystalprocess.HasExited)
-                                {
-                                    crystalprocess.Kill();
-                                    crystalprocess.WaitForExit();
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                MessageBox.Show("Failed to close CrystalDiskInfo process: " + ex.Message);
-                            }
-
-                        }
-                        catch (Exception ex)
-                        {
-                            MessageBox.Show("Error:" + ex.Message);
-                        }
-
-                    }
-                }
-
-            }
-            catch (Exception ex)
-            {
-
-                MessageBox.Show(" Error: " + ex.Message);
-            }
-        }
+        //public void processScannedText(string Modeldb, string firmwaredb, string Disksizedb, string serialnodb, string fgnodb,
+        //                               string emp_iddb, string emp_namedb)
+        //{
+        //    SetProcessDPIAware();
+
+        //    string exePath = ConfigurationManager.AppSettings["exePath"];
+        //    if (!File.Exists(exePath))
+        //    {
+        //        MessageBox.Show("Application file not found at path: " + exePath);
+        //        writestatusMessage($"CrystalDisk App path not found", "Application Not found");
+        //        return;
+        //    }
+        //    string processName = Path.GetFileNameWithoutExtension(exePath);
+        //    string savePath = ConfigurationManager.AppSettings["savePath"];
+
+        //    if (!Directory.Exists(Path.GetDirectoryName(savePath)))
+        //    {
+        //        writestatusMessage($"CrystalDisk file path not found", "File Not found");
+        //        Directory.CreateDirectory(Path.GetDirectoryName(savePath));
+        //    }
+
+        //    try
+        //    {
+        //        Process crystalprocess = null;
+        //        ManualResetEvent loadingFormReady = new ManualResetEvent(false);
+        //        LoadingForm loadingForm = null;
+
+        //        Thread loadingThread = new Thread(() =>
+        //        {
+        //            loadingForm = new LoadingForm();
+        //            loadingForm.Load += (s, e) => loadingFormReady.Set();  // Signal that form is ready
+        //            System.Windows.Forms.Application.Run(loadingForm);
+        //        });
+        //        loadingThread.SetApartmentState(ApartmentState.STA);
+        //        loadingThread.Start();
+
+        //        // Wait for the loading form to be fully loaded
+        //        loadingFormReady.WaitOne();
+        //        Fill_Response_Data("Loading QC Application");
+
+
+        //        try
+        //        {
+        //            var existingProcess = Process.GetProcessesByName(processName).FirstOrDefault();
+
+        //            if (existingProcess == null)
+        //            {
+        //                crystalprocess = Process.Start(exePath);
+
+        //                // Wait for window (up to 30s)
+        //                int timeout = 30000;
+        //                int waited = 0;
+        //                int interval = 500;
+
+
+        //                while (crystalprocess.MainWindowHandle == IntPtr.Zero && waited < timeout)
+        //                {
+        //                    Thread.Sleep(interval);
+        //                    waited += interval;
+        //                    crystalprocess.Refresh();
+
+        //                }
+
+        //                if (crystalprocess.MainWindowHandle == IntPtr.Zero)
+        //                {
+        //                    writestatusMessage("CrystalDiskInfo UI window not ready", "Timeout waiting for window");
+        //                    return;
+        //                }
+        //            }
+        //            else
+        //            {
+        //                crystalprocess = existingProcess;
+        //            }
+        //        }
+        //        finally
+        //        {
+
+        //            // loadingForm.Invoke(new System.Action(() => loadingForm.Close()));
+        //            //  CLOSE LOADING UI
+
+        //            if (loadingForm != null && loadingForm.IsHandleCreated)
+        //            {
+        //                loadingForm.Invoke(new System.Action(() =>
+        //                {
+        //                    loadingForm.Close();
+        //                }));
+        //            }
+
+
+        //        }
+
+        //        //  Continue with the rest of your code
+        //        using (var automation = new UIA3Automation())
+        //        {
+        //            var desktop = automation.GetDesktop();
+        //            Thread.Sleep(500);
+
+        //            var processes = Process.GetProcesses()
+        //                .Where(p => !string.IsNullOrEmpty(p.MainWindowTitle) && p.MainWindowTitle.Contains("CrystalDiskInfo"));
+
+        //            foreach (var process in processes)
+        //            {
+        //                try
+        //                {
+        //                    var app = FlaUI.Core.Application.Attach(process);
+        //                    var mainWindow = app.GetMainWindow(automation);
+
+        //                    if (mainWindow == null)
+        //                    {
+        //                        writestatusMessage($"CrystalDisk App window not found", "App window Not found");
+        //                        continue;
+        //                    }
+
+        //                    writestatusMessage($"CrystalDisk App window  found", "App window  found");
+
+        //                    // Maximize and focus the window
+        //                    ShowWindow(mainWindow.Properties.NativeWindowHandle.ValueOrDefault, SW_MAXIMIZE);
+        //                    mainWindow.Focus();
+        //                    Thread.Sleep(500);
+
+        //                    // Optionally click the disk button with AutomationId "1021"
+        //                    Keyboard.Type(VirtualKeyShort.F6);
+        //                    writestatusMessage("F6 button clicked for refresh", "F6 button click");
+        //                    Thread.Sleep(5000); // Let it refresh
+
+        //                    var targetButton = mainWindow.FindFirstDescendant(cf => cf.ByAutomationId("1021"))?.AsButton();
+        //                    if (targetButton == null)
+        //                    {
+        //                        Console.WriteLine("Button Not found");
+        //                        writestatusMessage("Disk button Not found for Essencore disk", "Disk button not found for click");
+
+        //                    }
+
+        //                    targetButton.Invoke();
+        //                    Thread.Sleep(700);
+        //                    writestatusMessage("Disk button clicked for Essencore disk", "Disk button click");
+        //                    var editElement_Mod = mainWindow.FindFirstDescendant(cf =>
+        //                                          cf.ByAutomationId("1012").And(cf.ByControlType(ControlType.Edit)));
+
+        //                    if (editElement_Mod == null)
+        //                    {
+        //                        Console.WriteLine("Edit control not found.");
+        //                        writestatusMessage("Model label not found", "Model label not found");
+        //                        return;
+        //                    }
+        //                    writestatusMessage("Model label  found", "Model label  found");
+
+        //                    // Try ValuePattern
+        //                    var valuePattern = editElement_Mod.Patterns.Value.PatternOrDefault;
+        //                    if (valuePattern != null)
+        //                    {
+        //                        currentText = valuePattern.Value;
+        //                        Console.WriteLine($"Edit control text: {currentText}");
+        //                        writestatusMessage($"Model text: {currentText}", "Model label found");
+        //                    }
+        //                    else
+        //                    {
+        //                        Console.WriteLine("ValuePattern is not supported for this Edit control.");
+
+        //                    }
+
+        //                    var Model_val = currentText;
+        //                    if (Model_val != null)
+        //                    {
+
+
+        //                        // Regex: captures everything before the size and then the size itself
+        //                        var match1 = Regex.Match(Model_val, @"^(.*)\s(\d+(?:\.\d+)?)\s(GB|MB)$");
+
+        //                        if (match1.Success)
+        //                        {
+        //                            Model_name = match1.Groups[1].Value.Trim();       // "ESSENCORE NVME GEN3 SSD"
+        //                            Disk_size = match1.Groups[2].Value + " GB";       // "256.0 GB"
+        //                            writestatusMessage($"Model name: {Model_name} DiskSize {Disk_size}", "Model value found");
+        //                            Console.WriteLine($"Name: {Model_name}");
+        //                            Console.WriteLine($"Size: {Disk_size}");
+        //                        }
+        //                        else
+        //                        {
+        //                            Console.WriteLine("No match.");
+        //                        }
+
+
+        //                    }
+        //                    var health_stat_btn = mainWindow.FindFirstDescendant(cf =>
+        //                                cf.ByAutomationId("1047").And(cf.ByControlType(ControlType.Button)));
+        //                    var temp_stat_btn = mainWindow.FindFirstDescendant(cf =>
+        //                                cf.ByAutomationId("1049").And(cf.ByControlType(ControlType.Button)));
+
+        //                    if (health_stat_btn == null && temp_stat_btn == null)
+        //                    {
+        //                        Console.WriteLine("health status and temp_status not found.");
+        //                        writestatusMessage("health status and temp_status not found", "Heath & Temp status not found");
+        //                        return;
+        //                    }
+
+        //                    Health_status = health_stat_btn.Name.ToString();
+        //                    Temp_status = temp_stat_btn.Name.ToString();
+
+
+        //                    Match Temp_match = Regex.Match(Temp_status, @"\d+");
+
+        //                    if (Temp_match.Success)
+        //                    {
+        //                        Temp_val = int.Parse(Temp_match.Value);
+        //                        Console.WriteLine(Temp_val); // Output: 36
+        //                    }
+        //                    else
+        //                    {
+        //                        Console.WriteLine("No number found.");
+        //                    }
+
+        //                    var Firmware_element = mainWindow.FindFirstDescendant(cf =>
+        //                        cf.ByAutomationId("1014").And(cf.ByControlType(FlaUI.Core.Definitions.ControlType.Document)));
+        //                    var serialno_element = mainWindow.FindFirstDescendant(cf =>
+        //                        cf.ByAutomationId("1015").And(cf.ByControlType(FlaUI.Core.Definitions.ControlType.Document)));
+        //                    var disk_letr_element = mainWindow.FindFirstDescendant(cf =>
+        //                        cf.ByAutomationId("1031").And(cf.ByControlType(FlaUI.Core.Definitions.ControlType.Document)));
+
+        //                    if (Firmware_element == null && serialno_element == null && disk_letr_element == null)
+        //                    {
+        //                        Console.WriteLine("Firmware & Serialno & Disk letter control not found.");
+        //                        return;
+        //                    }
+
+        //                    // 2. Try getting Text using TextPattern
+        //                    var txt_Pattern_Firmware = Firmware_element.Patterns.Text.PatternOrDefault;
+        //                    var txt_Pattern_Serialno = serialno_element.Patterns.Text.PatternOrDefault;
+        //                    var txt_Pattern_Diskltr = disk_letr_element.Patterns.Text.PatternOrDefault;
+        //                    if (txt_Pattern_Firmware == null && txt_Pattern_Serialno == null && txt_Pattern_Diskltr == null)
+        //                    {
+        //                        Console.WriteLine("Serial no & Firmware & Diskletter not found.");
+        //                        return;
+        //                    }
+        //                    Serial_no = txt_Pattern_Serialno.DocumentRange.GetText(-1);
+        //                    Firmware_val = txt_Pattern_Firmware.DocumentRange.GetText(-1);
+        //                    diskletter = txt_Pattern_Diskltr.DocumentRange.GetText(-1);
+        //                    writestatusMessage($"Serial_nos: {Serial_no}--Firmware_val:{Firmware_val}--Diskletter :{diskletter} ", "Heath & Temp status found");
+
+        //                    var Health_match = Regex.Match(Health_status, @"^(.*)\s+(\d+)\s*%?$", RegexOptions.Singleline);
+
+        //                    if (Health_match.Success)
+        //                    {
+        //                        Health_stat = Health_match.Groups[1].Value.Trim();
+        //                        Health_value = int.Parse(Health_match.Groups[2].Value);
+        //                        Console.WriteLine($"Status: {Health_stat}");
+        //                        Console.WriteLine($"Value: {Health_value}");
+        //                        writestatusMessage($"Health status: {Health_stat}--Temp_status:{Health_value}", "Heath & Temp status found");
+        //                    }
+        //                    else
+        //                    {
+        //                        Console.WriteLine("Pattern not matched.");
+        //                    }
+
+        //                    bool serialnopass = false, firwarepass = false, modelnopass = false,
+        //                    temperaturepass = false, healthstatpass = false, driveletterpass = false, diskSizePass = false;
+
+        //                    if (!string.IsNullOrWhiteSpace(diskletter))
+        //                    {
+
+        //                        driveletterpass = false;
+        //                    }
+        //                    else
+        //                    {
+
+        //                        diskletter = "Null";
+        //                        driveletterpass = true;
+        //                    }
+        //                    serialnopass = Serial_no.Trim() == serialnodb;
+        //                    firwarepass = Firmware_val.Trim() == firmwaredb;
+        //                    modelnopass = Model_name.Equals(Modeldb.Trim(), StringComparison.OrdinalIgnoreCase);
+        //                    temperaturepass = (Temp_val > 25) && (Temp_val < 70);
+        //                    healthstatpass = Health_stat.Equals("Good", StringComparison.OrdinalIgnoreCase) && Health_value > 80;
+        //                    diskSizePass = Disk_size.Equals(Disksizedb.Trim());
+
+        //                    Fill_Response_Data($"Serial_no    :{Serial_no.Trim()}--------{serialnopass}");
+        //                    Fill_Response_Data($"Firmware_no  :{Firmware_val.Trim()}-----{firwarepass}");
+        //                    Fill_Response_Data($"Model Name   :{Model_name.Trim()}-------{modelnopass}");
+        //                    Fill_Response_Data($"Temperature  :{Temp_val.ToString()}-----{temperaturepass}");
+        //                    Fill_Response_Data($"Health Status:{Health_stat.ToString()}--{healthstatpass}");
+        //                    Fill_Response_Data($"Disk Size    :{Disk_size.ToString()}--{diskSizePass}");
+
+
+
+
+        //                    bool allPass = serialnopass && firwarepass && modelnopass &&
+        //                          temperaturepass && healthstatpass && driveletterpass && diskSizePass;
+
+
+        //                    if (allPass)
+        //                    {
+
+        //                        board_status = "PASS";
+        //                        writestatusMessage($"Serial no: {Serial_no} is Pass", "Final QC status");
+        //                        Fill_Response_Data($"Serial no: {Serial_no} is Pass at K3 and CDI Stage");
+        //                        SQL_Upload(Serial_no, false, "Passed at K3&QC");
+        //                        popup.ShowDialogMessage($"{Serial_no} -- {board_status} at QC Testing", Color.Green, Color.White, true);
+        //                        lbl_result.Text = $"Serial no: {Serial_no} is Pass in K3-CDI stage";
+        //                        lbl_result.BackColor = Color.Green;
+        //                        lbl_result.ForeColor = Color.White;
+        //                        move_Formto_left();
+
+        //                    }
+        //                    else
+        //                    {
+        //                        board_status = "FAIL";
+        //                        writestatusMessage($"Serial no: {Serial_no} is Fail", "Final QC status");
+        //                        Fill_Response_Data($"Serial no: {Serial_no} is Fail at CDI Stage");
+        //                        SQL_Upload(Serial_no, true, "Failed at QC");
+        //                        popup.ShowDialogMessage($"{Serial_no} -- {board_status} at QC Testing", Color.Red, Color.White, false);
+        //                        lbl_result.Text = $"Serial no: {Serial_no} is fail in CDI stage";
+        //                        lbl_result.BackColor = Color.Red;
+        //                        lbl_result.ForeColor = Color.White;
+        //                        move_Formto_left();
+        //                    }
+
+        //                    var record = new QcDataRecord
+        //                    {
+
+        //                        emp_id = emp_iddb,
+        //                        emp_name = emp_namedb,
+        //                        Fg_no = fgnodb,
+        //                        SerialNumber = Serial_no,
+        //                        Firmware = Firmware_val,
+        //                        Temperature = Temp_val,
+        //                        HealthStatus = Health_status,
+        //                        ModelNumber = Model_name,
+        //                        DriveLetter = diskletter,
+        //                        DiskSize = Disk_size,
+        //                        boardstatus = board_status
+        //                    };
+
+
+        //                    List<QcDataRecord> records = new List<QcDataRecord> { record };
+
+        //                    // Pass the list to the upload function
+        //                    dbConnection.uploadresult(records);
+
+
+        //                    try
+        //                    {
+        //                        if (crystalprocess != null && !crystalprocess.HasExited)
+        //                        {
+        //                            crystalprocess.Kill();
+        //                            crystalprocess.WaitForExit();
+        //                        }
+        //                    }
+        //                    catch (Exception ex)
+        //                    {
+        //                        MessageBox.Show("Failed to close CrystalDiskInfo process: " + ex.Message);
+        //                    }
+
+        //                }
+        //                catch (Exception ex)
+        //                {
+        //                    MessageBox.Show("Error:" + ex.Message);
+        //                }
+
+        //            }
+        //        }
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+
+        //        MessageBox.Show(" Error: " + ex.Message);
+        //    }
+        //}
 
 
         private string GetClipboardTextSafe()
@@ -1407,65 +1537,268 @@ namespace K1_Stages
 
 
         #region SFCS_DATA
+        //public bool Check_Curr_Stage(string serialno, string app_id, string stage, bool boardonline)
+        //{
+        //    try
+        //    {
+        //        if (boardonline)
+        //        {
+        //            SFCS_db.Close();
+        //            using (SqlCommand cmd = new SqlCommand(
+        //                "SELECT * FROM PCBA_NextStage(NOLOCK) WHERE PCBA_Id = '" + serialno + "'", SFCS_db))
+        //            {
+        //                if (SFCS_db.State == ConnectionState.Closed)
+        //                    SFCS_db.Open();
+
+        //                using (SqlDataReader sdr = cmd.ExecuteReader())
+        //                {
+        //                    if (sdr.Read())
+        //                    {
+        //                        infosfromboard[0] = sdr["Work_order_no"].ToString();
+        //                        infosfromboard[1] = sdr["Rework_count"].ToString();
+
+        //                        Fill_Response_Data("Board Waiting ID : " + sdr["Next_Stage_id"].ToString());
+        //                        Fill_Response_Data("Board Workorder : " + infosfromboard[0]);
+        //                        Fill_Response_Data("Board RW : " + infosfromboard[1]);
+        //                        lbl_wo.Text = infosfromboard[0];
+        //                        lbl_try.Text= infosfromboard[1];
+        //                        Get_Completed_Qty();
+        //                        if (sdr["Next_Stage_id"].ToString() == app_id)
+        //                        {
+        //                            //SFCS_db.Close();
+        //                            return true;
+        //                        }
+        //                        else
+        //                        {
+        //                            errordesc = "Stage Mismatch for this PCB : " + serialno + ".\n" +
+        //                                        "Expected is : " + sdr["Next_Stage_id"] + "|" + sdr["Next_Stage_name"] + ".\n" +
+        //                                        "Actual is : " + app_id + "|" + stage + ".";
+        //                            lbl_result.Text = errordesc;
+        //                            lbl_result.BackColor = Color.Red;
+        //                            lbl_result.ForeColor = Color.White;
+        //                            //SFCS_db.Close();
+        //                            return false;
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+        //                        errordesc = "No Data for this PCB : " + serialno + " in SFCS Master Table.";
+        //                        lbl_result.Text = errordesc;
+        //                        lbl_result.BackColor = Color.Red;
+        //                        lbl_result.ForeColor = Color.White;
+        //                        //SFCS_db.Close();
+        //                        return false;
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        else
+        //        {
+        //            return true;
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        errordesc = "Exception. " + ex.Message;
+        //        lbl_result.Text = errordesc;
+        //        lbl_result.BackColor = Color.Red;
+        //        lbl_result.ForeColor = Color.White;
+        //        return false;
+        //    }
+        //}
+
+
+        //--------------------Version without retry count 
+        //public bool Check_Curr_Stage(string serialno, string app_id, string stage, bool boardonline)
+        //{
+        //    if (!boardonline)
+        //        return true;
+
+        //    try
+        //    {
+        //        // Ensure connection is closed before starting
+        //        if (SFCS_db.State == ConnectionState.Open)
+        //            SFCS_db.Close();
+
+        //        using (SqlCommand cmd = new SqlCommand(
+        //            "SELECT Work_order_no, Rework_count, Next_Stage_id, Next_Stage_name " +
+        //            "FROM PCBA_NextStage(NOLOCK) WHERE PCBA_Id = @serialno", SFCS_db))
+        //        {
+        //            cmd.Parameters.Add("@serialno", SqlDbType.VarChar).Value = serialno;
+
+        //            SFCS_db.Open();
+
+        //            using (SqlDataReader sdr = cmd.ExecuteReader())
+        //            {
+        //                if (!sdr.Read())
+        //                {
+        //                    lbl_result.Text = "No Data for this PCB : " + serialno;
+        //                    lbl_result.BackColor = Color.Red;
+        //                    lbl_result.ForeColor = Color.White;
+        //                    return false;
+        //                }
+
+        //                string workOrder = sdr["Work_order_no"].ToString();
+        //                string reworkCount = sdr["Rework_count"].ToString();
+        //                string nextStageId = sdr["Next_Stage_id"].ToString();
+        //                string nextStageName = sdr["Next_Stage_name"].ToString();
+
+        //                infosfromboard[0] = workOrder;
+        //                infosfromboard[1] = reworkCount;
+
+        //                Fill_Response_Data("Board Waiting ID : " + nextStageId);
+        //                Fill_Response_Data("Board Workorder : " + workOrder);
+        //                Fill_Response_Data("Board RW : " + reworkCount);
+
+        //                lbl_wo.Text = workOrder;
+        //                lbl_try.Text = reworkCount;
+
+        //                Get_Completed_Qty();
+
+        //                if (nextStageId == app_id)
+        //                {
+        //                    return true;
+        //                }
+
+        //                lbl_result.Text =
+        //                    $"Stage Mismatch for PCB {serialno}\n" +
+        //                    $"Expected: {nextStageId} | {nextStageName}\n" +
+        //                    $"Actual: {app_id} | {stage}";
+
+        //                lbl_result.BackColor = Color.Red;
+        //                lbl_result.ForeColor = Color.White;
+
+        //                return false;
+        //            }
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        lbl_result.Text = "Exception: " + ex.Message;
+        //        lbl_result.BackColor = Color.Red;
+        //        lbl_result.ForeColor = Color.White;
+        //        return false;
+        //    }
+        //}
+        //------------------------------
+
         public bool Check_Curr_Stage(string serialno, string app_id, string stage, bool boardonline)
         {
+            if (!boardonline)
+                return true;
+
             try
             {
-                if (boardonline)
-                {
+                if (SFCS_db.State == ConnectionState.Open)
                     SFCS_db.Close();
-                    using (SqlCommand cmd = new SqlCommand(
-                        "SELECT * FROM PCBA_NextStage(NOLOCK) WHERE PCBA_Id = '" + serialno + "'", SFCS_db))
+
+                string workOrder = string.Empty;
+                string reworkCount = string.Empty;
+                string nextStageId = string.Empty;
+                string nextStageName = string.Empty;
+
+                // -----------------------------
+                // 1️⃣ Get Next Stage Information
+                // -----------------------------
+                using (SqlCommand cmd = new SqlCommand(
+                    "SELECT Work_order_no, Rework_count, Next_Stage_id, Next_Stage_name " +
+                    "FROM PCBA_NextStage (NOLOCK) WHERE PCBA_Id = @serialno", SFCS_db))
+                {
+                    cmd.Parameters.Add("@serialno", SqlDbType.VarChar).Value = serialno;
+
+                    SFCS_db.Open();
+
+                    using (SqlDataReader sdr = cmd.ExecuteReader())
                     {
-                        if (SFCS_db.State == ConnectionState.Closed)
-                            SFCS_db.Open();
-
-                        using (SqlDataReader sdr = cmd.ExecuteReader())
+                        if (!sdr.Read())
                         {
-                            if (sdr.Read())
-                            {
-                                infosfromboard[0] = sdr["Work_order_no"].ToString();
-                                infosfromboard[1] = sdr["Rework_count"].ToString();
-
-                                Fill_Response_Data("Board Waiting ID : " + sdr["Next_Stage_id"].ToString());
-                                Fill_Response_Data("Board Workorder : " + infosfromboard[0]);
-                                Fill_Response_Data("Board RW : " + infosfromboard[1]);
-                                lbl_wo.Text = infosfromboard[0];
-                                Get_Completed_Qty();
-                                if (sdr["Next_Stage_id"].ToString() == app_id)
-                                {
-                                    SFCS_db.Close();
-                                    return true;
-                                }
-                                else
-                                {
-                                    errordesc = "Stage Mismatch for this PCB : " + serialno + ".\n" +
-                                                "Expected is : " + sdr["Next_Stage_id"] + "|" + sdr["Next_Stage_name"] + ".\n" +
-                                                "Actual is : " + app_id + "|" + stage + ".";
-                                    SFCS_db.Close();
-                                    return false;
-                                }
-                            }
-                            else
-                            {
-                                errordesc = "No Data for this PCB : " + serialno + " in SFCS Master Table.";
-                                SFCS_db.Close();
-                                return false;
-                            }
+                            lbl_result.Text = "No Data for this PCB : " + serialno;
+                            lbl_result.BackColor = Color.Red;
+                            lbl_result.ForeColor = Color.White;
+                            return false;
                         }
+
+                        workOrder = sdr["Work_order_no"]?.ToString();
+                        reworkCount = sdr["Rework_count"]?.ToString();
+                        nextStageId = sdr["Next_Stage_id"]?.ToString();
+                        nextStageName = sdr["Next_Stage_name"]?.ToString();
                     }
+
+                    SFCS_db.Close();
+                }
+
+                infosfromboard[0] = workOrder;
+                infosfromboard[1] = reworkCount;
+
+                Fill_Response_Data("Board Waiting ID : " + nextStageId);
+                Fill_Response_Data("Board Workorder : " + workOrder);
+                Fill_Response_Data("Board RW : " + reworkCount);
+
+                lbl_wo.Text = workOrder;
+                lbl_try.Text = reworkCount;
+
+                Get_Completed_Qty();
+
+                // -----------------------------
+                // 2️⃣ Stage Match Check
+                // -----------------------------
+                if (nextStageId == app_id)
+                {
+                    boardfailcount = 0;
+
+                    using (SqlCommand countCmd = new SqlCommand(
+                        "SELECT COUNT(TEST) FROM TESTINGFAILCOUNTCHECK_ESSENCORE (NOLOCK) " +
+                        "WHERE PCBAID = @pcbaid AND WORKORDER = @wo AND RW = @rw AND TEST = @test",
+                        SFCS_db))
+                    {
+                        countCmd.Parameters.Add("@pcbaid", SqlDbType.VarChar).Value = serialno;
+                        countCmd.Parameters.Add("@wo", SqlDbType.VarChar).Value = workOrder;
+                        countCmd.Parameters.Add("@rw", SqlDbType.Int).Value =
+                            string.IsNullOrEmpty(reworkCount) ? 0 : Convert.ToInt32(reworkCount);
+                        countCmd.Parameters.Add("@test", SqlDbType.VarChar).Value = stage;
+
+                        SFCS_db.Open();
+
+                        object result = countCmd.ExecuteScalar();
+
+                        if (result != null && result != DBNull.Value)
+                            boardfailcount = (int)Convert.ToInt64(result);
+
+                        SFCS_db.Close();
+                    }
+
+                    lbl_try.Text = (boardfailcount + 1).ToString();
+                    this.Refresh();
+
+                    return true;
                 }
                 else
                 {
-                    return true;
+                    lbl_result.Text =
+                        "Stage Mismatch for PCB : " + serialno + Environment.NewLine +
+                        "Expected : " + nextStageId + " | " + nextStageName + Environment.NewLine +
+                        "Actual : " + app_id + " | " + stage;
+
+                    lbl_result.BackColor = Color.Red;
+                    lbl_result.ForeColor = Color.White;
+
+                    return false;
                 }
             }
             catch (Exception ex)
             {
-                errordesc = "Exception. " + ex.Message;
+                if (SFCS_db.State == ConnectionState.Open)
+                    SFCS_db.Close();
+
+                lbl_result.Text = "Exception: " + ex.Message;
+                lbl_result.BackColor = Color.Red;
+                lbl_result.ForeColor = Color.White;
+
                 return false;
             }
         }
+
+
 
 
         private void SQL_Upload(string Sno, bool boardfail, string Result_Remarks)
@@ -1481,7 +1814,7 @@ namespace K1_Stages
                     "'" + lbl_app_id.Text + "'," +
                     "'" + lblstagename.Text + "'," +
                     "'" + infosfromboard[0] + "'," +
-                    "'" + Sno + "'," +
+                    "'" + Pcb_Serialno + "'," +
                     "'" + Sno + "'," +
                     "'" + (boardfail ? "FAIL" : "PASS") + "'," +
                     "'" + errordesc + "'," +
@@ -1507,7 +1840,7 @@ namespace K1_Stages
             catch (Exception ex)
             {
                 Update_Error_in_Server("Exception", "ERR-SQL-02", ex.Message.ToString(),
-                    "SFCS Dashboard", "PCBA:" + Sno + ",Workorder:" + lblemp_id.Text + ",CustomerNo:" + Sno + ".");
+                    "SFCS Dashboard", "PCBA:" + Pcb_Serialno + ",Workorder:" + lblemp_id.Text + ",CustomerNo:" + Sno + ".");
                 lbl_result.Text += "SFCS Dashboard Failed.";
                 lbl_result.BackColor = Color.Red;
                 lbl_result.ForeColor = Color.Yellow;
@@ -1516,19 +1849,24 @@ namespace K1_Stages
 
             for (int tryupdate = 1; tryupdate <= 3; tryupdate++)
             {
+
+                //If(boardfail, If(boardfailcount > 1, reworkidinfo(0), lbl_app_id.Text), nextidinfo(0))
+                // "Next_Stage_Id = '" + (boardfail ? reworkidinfo[0] : nextidinfo[0]) + "', " +
+                // "Next_Stage_Name = '" + (boardfail ? reworkidinfo[1] : nextidinfo[1]) + "', " +
                 try
                 {
                     SFCS_db.Close();
 
                     SqlCommand cmd = new SqlCommand(
                         "UPDATE PCBA_NextStage SET " +
-                        "Next_Stage_Id = '" + (boardfail ? reworkidinfo[0] : nextidinfo[0]) + "', " +
-                        "Next_Stage_Name = '" + (boardfail ? reworkidinfo[1] : nextidinfo[1]) + "', " +
+
+                        "Next_Stage_Id = '" +(boardfail? (boardfailcount > 1 ? reworkidinfo[0] : lbl_app_id.Text): nextidinfo[0]) + "', " +
+                        "Next_Stage_Name = '" + (boardfail ? (boardfailcount > 1 ? reworkidinfo[1] : lblstagename.Text) : nextidinfo[1]) + "', " +
                         "Previous_Stage = '" + lblstagename.Text + "', " +
                         "Update_timestamp = FORMAT(CURRENT_TIMESTAMP,'dd-MM-yyyy HH:mm:ss.ffff'), " +
                         "Update_Machine_id = HOST_NAME(), " +
                         "Update_Emp_id = '" + lblemp_id.Text + "' " +
-                        "WHERE PCBA_Id = '" + Sno + "'",
+                        "WHERE PCBA_Id = '" + Pcb_Serialno + "'",
                         SFCS_db);
 
                     if (SFCS_db.State == ConnectionState.Closed)
@@ -1536,14 +1874,14 @@ namespace K1_Stages
 
                     cmd.ExecuteNonQuery();
                     SFCS_db.Close();
-                    Fill_Response_Data("Next Stage : " + (boardfail ? reworkidinfo[1] : nextidinfo[1]));
+                    Fill_Response_Data("Next Stage : " + (boardfail ? (boardfailcount > 1 ? reworkidinfo[1] : lblstagename.Text) : nextidinfo[1]));
                     Fill_Response_Data("SFCS Next Stage Update Success.");
                     break;
                 }
                 catch (Exception ex)
                 {
                     Update_Error_in_Server("Exception", "ERR-SQL-03", ex.Message.ToString(),
-                        "SFCS Nextstage Failed", "PCBA:" + Sno + ",Workorder:" + infosfromboard[0] + ",CustomerNo:" + Sno + ".");
+                        "SFCS Nextstage Failed", "PCBA:" + Pcb_Serialno + ",Workorder:" + infosfromboard[0] + ",CustomerNo:" + Sno + ".");
                     lbl_result.Text += "SFCS Nextstage Failed.";
                     lbl_result.BackColor = Color.Red;
                     lbl_result.ForeColor = Color.Yellow;
@@ -1565,14 +1903,61 @@ namespace K1_Stages
             catch (Exception ex)
             {
                 Update_Error_in_Server("Exception", "ERR-SQL-04", ex.Message.ToString(),
-                    "SFCS FCT Failed", "PCBA:" + Sno + ",Workorder:" + infosfromboard[0] + ",CustomerNo:" + Sno + ".");
+                    "SFCS FCT Failed", "PCBA:" + Pcb_Serialno + ",Workorder:" + infosfromboard[0] + ",CustomerNo:" + Sno + ".");
                 lbl_result.Text += "SFCS FCT Failed.";
                 lbl_result.BackColor = Color.Red;
                 lbl_result.ForeColor = Color.Yellow;
                 Fill_Response_Data("SFCS FCT Update Failed.");
             }
 
+            if (boardfail)
+            {
+                try
+                {
+                    if (SFCS_db.State == ConnectionState.Open)
+                        SFCS_db.Close();
+                 
 
+                    SqlCommand cmd = new SqlCommand(
+                        "INSERT INTO TESTINGFAILCOUNTCHECK_ESSENCORE VALUES ('" +
+                        infosfromboard[0] + "','" +
+                        lblstagename.Text + "','" +
+                        Pcb_Serialno + "','" +
+                        infosfromboard[1] + "','" +
+                        (boardfail ? "FAIL" : "PASS") + "','" +
+                        errordesc + "','Try : " +
+                        lbl_try.Text + "'," +
+                        "FORMAT(CURRENT_TIMESTAMP,'dd-MM-yyyy HH:mm:ss'),'" +
+                        infologindetails[0] + "'," +
+                        "SUBSTRING(HOST_NAME(),1,50),'','','')",
+                        SFCS_db);
+
+                    if (SFCS_db.State == ConnectionState.Closed)
+                        SFCS_db.Open();
+
+                    cmd.ExecuteNonQuery();
+                    SFCS_db.Close();
+
+                    Fill_Response_Data("SFCS Fail Count Update Success.");
+                }
+                catch (Exception ex)
+                {
+                    Update_Error_in_Server(
+                        "Exception",
+                        "ERR-SQL-05",
+                        ex.Message.ToString(),
+                        "SFCS Fail Count Failed",
+                        "CustomerNo:" + Sno +
+                        ",Workorder:" + infosfromboard[0] +
+                        ",PCBA:" + Pcb_Serialno + ".");
+
+                    lbl_result.Text += "SFCS Fail Count Update Failed.";
+                    lbl_result.BackColor = Color.Red;
+                    lbl_result.ForeColor = Color.Yellow;
+
+                    Fill_Response_Data("SFCS Fail Count Update Failed.");
+                }
+            }
 
 
         }
@@ -1630,7 +2015,7 @@ namespace K1_Stages
 
                 inqry = "SELECT COUNT(DISTINCT PCBID) AS PCBCOUNT " +
                         "FROM DASHBOARD_ESSENCOREDATAS " +
-                        "WHERE STAGENAME = '" + app_name_lbl.Text + "' " +
+                        "WHERE STAGENAME = '" + lblstagename.Text + "' " +
                         "AND WORKORDER = '" + lbl_wo.Text + "'";
 
                 using (SqlCommand cmd = new SqlCommand(inqry, SFCS_db))
@@ -1660,7 +2045,67 @@ namespace K1_Stages
                 // Fill_Response_Data(ex.Message);
             }
 
-            this.Refresh();
+            //this.Refresh();
+        }
+
+        private void startchecksfcs()
+        {
+            try
+            {
+                if (SFCS_db.State == ConnectionState.Open)
+                    SFCS_db.Close();
+
+                SqlCommand cmd = new SqlCommand(
+                    "SELECT * FROM RoutingStages WHERE FG = '" + Fg + "'",
+                    SFCS_db);
+
+                if (SFCS_db.State == ConnectionState.Closed)
+                    SFCS_db.Open();
+
+                SqlDataReader sdr = cmd.ExecuteReader();
+
+                if (sdr.Read())
+                {
+                    try
+                    {
+                        string[] stages = sdr["Stages"].ToString().Split(',');
+                        int index = Array.IndexOf(stages, lbl_app_id.Text);
+
+                        if (index >= 0 && index < stages.Length - 1)
+                            nextidinfo[0] = stages[index + 1];
+                    }
+                    catch (Exception)
+                    {
+                        // ignored (same as VB empty catch)
+                    }
+                }
+
+                sdr.Close();
+                SFCS_db.Close();
+
+                string cmd1 = "SELECT App_ID, Application_Name FROM App_ver WHERE App_ID = '" + nextidinfo[0] + "'";
+                SqlDataAdapter da1 = new SqlDataAdapter(cmd1, SFCS_db);
+                DataSet ds1 = new DataSet();
+                da1.Fill(ds1, "app_name");
+
+                if (ds1.Tables[0].Rows.Count > 0)
+                {
+                    nextidinfo[1] = ds1.Tables[0].Rows[0][1].ToString();
+                }
+
+                SFCS_db.Close();
+
+                Fill_Response_Data("SFCS Next Stage : " + nextidinfo[0] + "|" + nextidinfo[1]);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message.ToString(),
+                                "Exception in Fetching Next Stage",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+
+                return;   // equivalent to Exit Sub
+            }
         }
 
 
