@@ -676,6 +676,7 @@ namespace K1_Stages
                     lbl_result.Text = "Open the Application in Administartor";
                     lbl_result.ForeColor = Color.Black;
                     lbl_result.BackColor = Color.Yellow;
+                    txt_SN.Enabled = false;
 
                     return null;
                 }
@@ -685,6 +686,7 @@ namespace K1_Stages
                                       "Restart the Application";
                     lbl_result.ForeColor = Color.Black;
                     lbl_result.BackColor = Color.Yellow;
+                    txt_SN.Enabled = false;
                     return null;
                 }
 
