@@ -324,7 +324,7 @@
             // 
             lbl_result.BackColor = SystemColors.ActiveCaption;
             lbl_result.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lbl_result.Location = new Point(493, 179);
+            lbl_result.Location = new Point(493, 176);
             lbl_result.Name = "lbl_result";
             lbl_result.Size = new Size(456, 274);
             lbl_result.TabIndex = 23;

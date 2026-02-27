@@ -121,8 +121,9 @@ namespace K1_Stages
             this.FormClosing += Form1_close;
             this.Shown += Form1_Shown;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.MaximizeBox = false;
+            this.MaximizeBox = false; 
             this.MinimizeBox = false;
+
 
 
             //Start check sfcs 
@@ -155,7 +156,6 @@ namespace K1_Stages
             {
                 lbl_result.BackColor = SystemColors.ActiveCaption;
                 lbl_result.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-                lbl_result.Location = new Point(493, 179);
                 lbl_result.Name = "lbl_result";
                 lbl_result.Size = new Size(456, 274);
                 lbl_result.TabIndex = 23;
@@ -400,7 +400,7 @@ namespace K1_Stages
                     var loadK1Window = Retry.WhileNull(() =>
                         mainWindow.FindFirstDescendant(cf => cf.ByControlType(ControlType.Window)
                             .And(cf.ByName("Open"))),
-                        TimeSpan.FromSeconds(5)).Result;
+                        TimeSpan.FromSeconds(5)).Result;// Wait for the "Open" dialog to appear with a timeout of 5 seconds
 
                     if (loadK1Window != null)
                     {
