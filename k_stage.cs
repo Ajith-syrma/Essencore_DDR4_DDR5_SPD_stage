@@ -12,9 +12,11 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Windows.Forms;
 using static System.Collections.Specialized.BitVector32;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Application = FlaUI.Core.Application;
@@ -123,6 +125,7 @@ namespace K1_Stages
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false; 
             this.MinimizeBox = false;
+            lbl_result.AutoSize = false;
 
 
 
@@ -198,7 +201,12 @@ namespace K1_Stages
                             if (Check_Curr_Stage(Pcb_Serialno, lbl_app_id.Text, lblstagename.Text, boardonline))
                             {
                                 move_Formto_right();
-                                MessageBox.Show("Please scan the serial Number on the OUT0 of the MP Tool");
+                                //MessageBox.Show("Please scan the serial Number on the DUT 0 of the MP Tool");
+                                if (App_Name== "SSDMP.exe")
+                                {
+                                    scan_serial_Mptool();
+                                }
+                                
                             }
                             else
                             {
@@ -210,9 +218,10 @@ namespace K1_Stages
                         }
                         else
                         {
+                           // lbl_result.AutoSize = false;
                             lbl_result.BackColor = Color.Yellow;
                             lbl_result.ForeColor = Color.Black;
-                            lbl_result.Text = "No data found for the provided customer Serial Number";
+                            lbl_result.Text = "No data found for the provided customer Serial No:";
                             txt_SN.Clear();
                         }
 
@@ -220,20 +229,23 @@ namespace K1_Stages
 
                     else if (customer_Fg == "0")
                     {
+                       // lbl_result.AutoSize = false;
                         lbl_result.BackColor = Color.Yellow;
                         lbl_result.ForeColor = Color.Black;
-                        lbl_result.Text = "No data found for the provided customer Serial Number";
+                        lbl_result.Text = "No data found for the provided customer Serial No:";
                         txt_SN.Clear();
                     }
                     else if (string.IsNullOrEmpty(customer_Fg))
                     {
+                        //lbl_result.AutoSize = false;
                         lbl_result.BackColor = Color.Yellow;
                         lbl_result.ForeColor = Color.Black;
-                        lbl_result.Text = "Network error could not access server Please contact IT Administrator";
+                        lbl_result.Text = "Network error could not access server\n Please contact IT Administrator";
                         txt_SN.Clear();
                     }
                     else
                     {
+                        //lbl_result.AutoSize = false;
                         lbl_result.BackColor = Color.Yellow;
                         lbl_result.ForeColor = Color.Black;
                         lbl_result.Text = "Scanned FG-Serial and Selected Fg different";
@@ -245,6 +257,7 @@ namespace K1_Stages
                 }
                 else
                 {
+                    //lbl_result.AutoSize = false;
                     lbl_result.BackColor = Color.Yellow;
                     lbl_result.ForeColor = Color.Black;
                     lbl_result.Text = "Please scan Customer Serial Number";
@@ -259,6 +272,48 @@ namespace K1_Stages
                 barcodeData.Append((char)e.KeyValue);
             }
         }
+
+        private void scan_serial_Mptool()
+        {
+            Thread.Sleep(1000);
+            //var textBoxes = mainWindow.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit));
+            //Thread.Sleep(1000);
+
+            //foreach (var tb in textBoxes)
+            //{
+            //    var textbox = tb.AsTextBox();
+
+            //    if (textbox.Text == "ESP")  //1231 for 3.0
+            //    {
+            //        MessageBox.Show($"AutomationId: {textbox.AutomationId}");
+            //        break;
+            //    }
+            //}
+            try
+            {
+                var textboxserial = mainWindow.FindFirstDescendant(cf =>
+                                                 cf.ByControlType(ControlType.Edit).And(cf.ByAutomationId("1231")));
+
+                if (textboxserial != null)
+                {
+                    var serialnotxtbox = textboxserial.AsTextBox();
+
+                    serialnotxtbox.Text = "";
+                    System.Threading.Thread.Sleep(100);
+                    serialnotxtbox.Enter(txt_SN.Text.Trim());
+                    System.Threading.Thread.Sleep(100);
+                    writestatusMessage($"Serial No {txt_SN.Text.Trim()} is scanned in Mp Tool", "capacity selected");
+                    Fill_Response_Data($"Serial No {txt_SN.Text.Trim()} is selected in Mp Tool");
+                }
+
+            }
+            catch(Exception ex) 
+            {
+                    MessageBox.Show($"Error:{ex} in Dut 0 Scan");
+            }
+
+        }
+
 
         private void move_Formto_center()
         {
@@ -861,6 +916,7 @@ namespace K1_Stages
                 station = Regex.Match(lastValidBlock, @"Station:\s*(.+)").Groups[1].Value.Trim();
             }
 
+
             DbConnection dbconnect = new DbConnection();
             var ser_len = serial.Length;
             if ((ser_len == 14 || ser_len == 17) && (serial.StartsWith("ES") || (serial.StartsWith("EN"))))
@@ -899,7 +955,7 @@ namespace K1_Stages
                         //var qc = new k_stage(stage_N, Gtype,app_name,app_path,fgno,emp_id,emp_name,firmware_name, filePath);
                         boardfail = false;
                         currentStage.SQL_Upload(serial, boardfail, "Passed at K1");
-                        currentStage.lbl_result.Text = $"Serial no: {serial} is Pass in K1 stage";
+                        currentStage.lbl_result.Text = $"Serial no: {serial} \n Pass in K1 stage";
                         currentStage.lbl_result.BackColor = Color.Green;
                         currentStage.lbl_result.ForeColor = Color.White;
                         currentStage.txt_SN.Clear();
@@ -924,7 +980,7 @@ namespace K1_Stages
                     {
                         boardfail = true;
                         currentStage.SQL_Upload(serial, boardfail, "Failed at K1");
-                        currentStage.lbl_result.Text = $"Serial no: {serial} is FAIL in K1 stage";
+                        currentStage.lbl_result.Text = $"Serial no: {serial} \n FAIL in K1 stage";
                         currentStage.lbl_result.BackColor = Color.Red;
                         currentStage.lbl_result.ForeColor = Color.White;
                         currentStage.txt_SN.Clear();
@@ -965,7 +1021,9 @@ namespace K1_Stages
                 {
                     writestatusMessage($"Serial No: {serial}-- Capacity: {capacity} status not found", "Stage Mismatch");
                     currentStage.Fill_Response_Data($"Serial No: {serial}-- Capacity: {capacity} SerialNumber Mismatch");
-                    currentStage.lbl_result.Text = $"Serial No: {serial}-- Capacity: {capacity} SerialNumber Mismatch\n" +
+                    currentStage.lbl_result.Text = $"Serial No: {serial}\n" + 
+                                                   $"Capacity: {capacity}\n"+
+                                                   $"SFCS SerialNumber Mismatch\n" +
                                                    $"Please check the scanned serial Number";
                     currentStage.lbl_result.ForeColor=Color.White;
                     currentStage.lbl_result.BackColor=Color.Red;
@@ -1515,14 +1573,15 @@ namespace K1_Stages
         #region Errorlogs
         public static void writestatusMessage(string Status_message, string functionName)
         {
-            var systemPath = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\Syrma_Training_Errors" + "\\" + DateTime.Now.ToString("dd-MM-yyyy");
+            //var systemPath = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\Syrma_Training_Errors" + "\\" + DateTime.Now.ToString("dd-MM-yyyy");
+            var systemPath = System.Windows.Forms.Application.StartupPath + "\\Error_Logs" + "\\" + DateTime.Now.ToString("dd-MM-yyyy");
 
             if (!Directory.Exists(systemPath))
             {
                 Directory.CreateDirectory(systemPath);
             }
 
-            string StatusLog = String.Format(@"{0}\{1}.txt", systemPath, "StatusLogK3QC");
+            string StatusLog = String.Format(@"{0}\{1}.txt", systemPath, "K1_Logs");
             using (StreamWriter statLogs = new StreamWriter(StatusLog, true))
             {
                 statLogs.WriteLine("--------------------------------------------------------------------------------------------------------------------" + Environment.NewLine);
@@ -1800,9 +1859,6 @@ namespace K1_Stages
             }
         }
 
-
-
-
         private void SQL_Upload(string Sno, bool boardfail, string Result_Remarks)
         {
 
@@ -1842,7 +1898,8 @@ namespace K1_Stages
             catch (Exception ex)
             {
                 Update_Error_in_Server("Exception", "ERR-SQL-02", ex.Message.ToString(),
-                    "SFCS Dashboard", "PCBA:" + Pcb_Serialno + ",Workorder:" + lblemp_id.Text + ",CustomerNo:" + Sno + ".");
+                    "SFCS Dashboard", "PCBA:" + Pcb_Serialno + 
+                    ",Workorder:"+ infosfromboard[0] + "Emp_id :" + lblemp_id.Text + ",CustomerNo:" + Sno + ".");
                 lbl_result.Text += "SFCS Dashboard Failed.";
                 lbl_result.BackColor = Color.Red;
                 lbl_result.ForeColor = Color.Yellow;
@@ -1895,7 +1952,7 @@ namespace K1_Stages
             {
                 SFCS_db.Close();
 
-                SqlCommand cmd = new SqlCommand("INSERT INTO FCT VALUES('CHN1','" + lblstagename.Text + "','" + Sno + "','" + (boardfail ? "FAIL" : "PASS") + "','" + errordesc + "',FORMAT(CURRENT_TIMESTAMP,'dd-MM-yyyy HH:mm:ss.ffff'),'" + lblemp_id.Text + "',HOST_NAME(),'" + infosfromboard[1] + "','" + infosfromboard[0] + "','')", SFCS_db);
+                SqlCommand cmd = new SqlCommand("INSERT INTO FCT VALUES('CHN1','" + lblstagename.Text + "','" + Pcb_Serialno + "','" + (boardfail ? "FAIL" : "PASS") + "','" + errordesc + "',FORMAT(CURRENT_TIMESTAMP,'dd-MM-yyyy HH:mm:ss.ffff'),'" + lblemp_id.Text + "',HOST_NAME(),'" + infosfromboard[1] + "','" + infosfromboard[0] + "','')", SFCS_db);
                 if (SFCS_db.State == ConnectionState.Closed)
                     SFCS_db.Open();
                 cmd.ExecuteNonQuery();
@@ -1956,7 +2013,6 @@ namespace K1_Stages
                     lbl_result.Text += "SFCS Fail Count Update Failed.";
                     lbl_result.BackColor = Color.Red;
                     lbl_result.ForeColor = Color.Yellow;
-
                     Fill_Response_Data("SFCS Fail Count Update Failed.");
                 }
             }
