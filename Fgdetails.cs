@@ -5,7 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace K1_Stages
+namespace SPD_Stage
 {
     class Fgdetails
     {
@@ -66,5 +66,10 @@ namespace K1_Stages
     {
         public string PCB_SNO { get; set; }
         public string Fg_no { get; set; }  
+    }
+    class FileState
+    {
+        public DateTime LastWriteTime { get; set; }
+        public string LastHash { get; set; }
     }
 }

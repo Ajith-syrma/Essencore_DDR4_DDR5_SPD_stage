@@ -1,6 +1,6 @@
-﻿namespace K1_Stages
+﻿namespace SPD_Stage
 {
-    partial class K1_load
+    partial class spd_load
     {
         /// <summary>
         /// Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(K1_load));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(spd_load));
             lbl_app_id = new Label();
             lbl_hdr_app_id = new Label();
             lbl_sw_version = new Label();
@@ -44,8 +44,6 @@
             btn_Start = new Button();
             cmb_capacity = new ComboBox();
             label4 = new Label();
-            lbl_filepathvalue = new Label();
-            lbl_startinfo = new Label();
             label2 = new Label();
             cmb_stage = new ComboBox();
             lbl_prd_model = new Label();
@@ -66,7 +64,7 @@
             lbl_app_id.Name = "lbl_app_id";
             lbl_app_id.Size = new Size(104, 40);
             lbl_app_id.TabIndex = 4;
-            lbl_app_id.Text = "260";
+            lbl_app_id.Text = "202";
             lbl_app_id.TextAlign = ContentAlignment.MiddleCenter;
             lbl_app_id.Click += lbl_app_id_Click;
             // 
@@ -202,7 +200,7 @@
             cmb_capacity.Name = "cmb_capacity";
             cmb_capacity.Size = new Size(183, 33);
             cmb_capacity.TabIndex = 20;
-            cmb_capacity.SelectedValueChanged += cmbcapacity_SelectedIndexChanged;
+            //cmb_capacity.SelectedValueChanged += cmbcapacity_SelectedIndexChanged;
             // 
             // label4
             // 
@@ -213,28 +211,6 @@
             label4.Size = new Size(48, 29);
             label4.TabIndex = 29;
             label4.Text = "FG";
-            // 
-            // lbl_filepathvalue
-            // 
-            lbl_filepathvalue.AutoSize = true;
-            lbl_filepathvalue.BackColor = Color.FromArgb(255, 128, 128);
-            lbl_filepathvalue.Location = new Point(256, 305);
-            lbl_filepathvalue.Name = "lbl_filepathvalue";
-            lbl_filepathvalue.Size = new Size(59, 25);
-            lbl_filepathvalue.TabIndex = 30;
-            lbl_filepathvalue.Text = "label1";
-            lbl_filepathvalue.Visible = false;
-            // 
-            // lbl_startinfo
-            // 
-            lbl_startinfo.AutoSize = true;
-            lbl_startinfo.BackColor = Color.FromArgb(255, 128, 128);
-            lbl_startinfo.Location = new Point(372, 348);
-            lbl_startinfo.Name = "lbl_startinfo";
-            lbl_startinfo.Size = new Size(59, 25);
-            lbl_startinfo.TabIndex = 31;
-            lbl_startinfo.Text = "label2";
-            lbl_startinfo.Visible = false;
             // 
             // label2
             // 
@@ -269,7 +245,7 @@
             // cmb_prdctModel
             // 
             cmb_prdctModel.FormattingEnabled = true;
-            cmb_prdctModel.Items.AddRange(new object[] { "Select model", "M.2", "SSD_SATA" });
+            cmb_prdctModel.Items.AddRange(new object[] { "Select model", "DDR4", "DDR5" });
             cmb_prdctModel.Location = new Point(469, 197);
             cmb_prdctModel.Name = "cmb_prdctModel";
             cmb_prdctModel.Size = new Size(183, 33);
@@ -282,13 +258,13 @@
             lbl_stage_load.BackColor = Color.SteelBlue;
             lbl_stage_load.Font = new Font("Bahnschrift Condensed", 27.75F, FontStyle.Bold);
             lbl_stage_load.ForeColor = Color.White;
-            lbl_stage_load.Location = new Point(469, 9);
+            lbl_stage_load.Location = new Point(469, 11);
             lbl_stage_load.Name = "lbl_stage_load";
-            lbl_stage_load.Size = new Size(68, 68);
+            lbl_stage_load.Size = new Size(99, 68);
             lbl_stage_load.TabIndex = 1;
-            lbl_stage_load.Text = "K1";
+            lbl_stage_load.Text = "SPD";
             // 
-            // K1_load
+            // spd_load
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
@@ -296,8 +272,6 @@
             Controls.Add(cmb_prdctModel);
             Controls.Add(lbl_prd_model);
             Controls.Add(lbl_hdr_sw_version);
-            Controls.Add(lbl_startinfo);
-            Controls.Add(lbl_filepathvalue);
             Controls.Add(label4);
             Controls.Add(lbl_sw_version);
             Controls.Add(lbl_hdr_app_id);
@@ -315,8 +289,8 @@
             Controls.Add(pictureBox1);
             Controls.Add(label2);
             Controls.Add(cmb_stage);
-            Name = "K1_load";
-            Text = "K1";
+            Name = "spd_load";
+            Text = "SPD";
             Load += K1_load_Load;
             ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
@@ -342,8 +316,6 @@
         private Button btn_Start;
         private ComboBox cmb_capacity;
         private Label label4;
-        private Label lbl_filepathvalue;
-        private Label lbl_startinfo;
         private Label label2;
         private ComboBox cmb_stage;
         private Label lbl_prd_model;

@@ -1,4 +1,4 @@
-﻿namespace K1_Stages
+﻿namespace SPD_Stage
 {
     partial class popup
     {

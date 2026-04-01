@@ -3,7 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
 
-namespace K1_Stages
+namespace SPD_Stage
 {
     public partial class popup : Form
     {

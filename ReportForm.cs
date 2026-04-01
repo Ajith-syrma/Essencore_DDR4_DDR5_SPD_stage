@@ -2,7 +2,7 @@
 using System.Data.SqlClient;
 using System.Runtime.InteropServices;
 
-namespace K1_Stages
+namespace SPD_Stage
 {
     public partial class ReportForm : Form
     {

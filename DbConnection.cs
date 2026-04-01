@@ -9,7 +9,7 @@ using System.Data;
 using System.Reflection;
 using static System.Collections.Specialized.BitVector32;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-namespace K1_Stages
+namespace SPD_Stage
 {
 
     class DbConnection
@@ -23,88 +23,7 @@ namespace K1_Stages
         DataTable dt;
 
 
-        //public string DbConnect1(string serial, string model, string capacity, string station,
-        //                string testTime, string status)
-        //{
-        //    try
-        //    {
-        //        using (SqlCommand cmd = new SqlCommand("pro_update_result_stat", Barcode_db))
-        //        {
-        //            cmd.CommandType = CommandType.StoredProcedure;
-        //            //cmd.Parameters.AddWithValue("@Stage", "K1");
-        //            cmd.Parameters.AddWithValue("@serial_no", serial);
-        //            cmd.Parameters.AddWithValue("@model", model);
-        //            cmd.Parameters.AddWithValue("@capacity", capacity);
-        //            cmd.Parameters.AddWithValue("@station", station);
-        //            cmd.Parameters.AddWithValue("@test_time", testTime);
-        //            cmd.Parameters.AddWithValue("@status", status);
 
-        //            Barcode_db.Open();
-        //            object reader = cmd.ExecuteScalar();
-        //            Barcode_db.Close();
-
-        //            return reader?.ToString(); // handles null safely
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        MessageBox.Show("Error : " + ex.Message); // ✅ show error
-        //        return string.Empty;
-        //    }
-        //}
-        public string DbConnect2(string serial, string model, string capacity, string station,
-                                string testTime, string status,string pcbserialno)
-        {
-            try
-            {
-                using (SqlCommand cmd = new SqlCommand("pro_update_result_stat", Essencore_db))
-                {
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.Parameters.AddWithValue("@Stage", "K1");
-                    cmd.Parameters.AddWithValue("@serial_no", serial);
-                    cmd.Parameters.AddWithValue("@model", model);
-                    cmd.Parameters.AddWithValue("@capacity", capacity);
-                    cmd.Parameters.AddWithValue("@station", station);
-                    cmd.Parameters.AddWithValue("@test_time", testTime);
-                    cmd.Parameters.AddWithValue("@status", status);
-                    cmd.Parameters.AddWithValue("@pcbserial", pcbserialno);
-
-                    Essencore_db.Open();
-                    object reader = cmd.ExecuteScalar();
-                    Essencore_db.Close();
-
-                    return reader?.ToString(); // handles null safely
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error : " + ex.Message); // ✅ show error
-                return string.Empty;
-            }
-        }
-
-
-        //public string pcb_status(string serial, string model, string result)
-        //{
-        //    try
-        //    {
-        //        cmd = new SqlCommand("pro_update_result_stat", SFCS1_db);
-        //        cmd.CommandType = CommandType.StoredProcedure;
-        //        cmd.Parameters.AddWithValue("@serial", serial);
-        //        cmd.Parameters.AddWithValue("@model", model);
-        //        cmd.Parameters.AddWithValue("@result", result);
-        //        //cmd.Parameters.AddWithValue("@Work_Orderno", Work_Orderno);
-        //        SFCS1_db.Open();
-        //        var reader = cmd.ExecuteScalar();
-        //        SFCS1_db.Close();
-        //        return reader.ToString();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return string.Empty;
-        //        MessageBox.Show("Error : " + ex.Message.ToString());
-        //    }
-        //}
 
         public string get_stage_valid(string serial, string model)
         {
@@ -134,28 +53,7 @@ namespace K1_Stages
         }
 
 
-        //public string get_pcb_serialno(string serial, string pdct_model)
-        //{
-        //    try
-        //    {
-        //        cmd = new SqlCommand("pro_get_pcbserial", Barcode_db);
-        //        cmd.CommandType = CommandType.StoredProcedure;
-        //        cmd.Parameters.AddWithValue("@customer_serial_no", serial);
-        //        cmd.Parameters.AddWithValue("@model", pdct_model);
-        //        //cmd.Parameters.AddWithValue("@result", result);
-        //        //cmd.Parameters.AddWithValue("@Work_Orderno", Work_Orderno);
-        //        Barcode_db.Open();
-        //        var reader = cmd.ExecuteScalar();
-        //        Barcode_db.Close();
-        //        return reader.ToString();
-        //        //return "Pass";
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        MessageBox.Show("Error : " + ex.Message.ToString());
-        //        return string.Empty;
-        //    }
-        //}
+
 
         public List<scanned_dt_val> scanned_dtval(string serial, string pdct_model)
         {
@@ -167,7 +65,7 @@ namespace K1_Stages
                 cmd = new SqlCommand("pro_get_pcbserial", Barcode_db);
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.AddWithValue("@customer_serial_no", serial);
-                cmd.Parameters.AddWithValue("@model", pdct_model);
+                cmd.Parameters.AddWithValue("@model", "DRAM");
                 adapter = new SqlDataAdapter(cmd);
                 dt = new DataTable();
                 adapter.Fill(dt);
@@ -436,21 +334,28 @@ namespace K1_Stages
             var listcapacity = new List<string>();
             try
             {
+                cmd = new SqlCommand(
+                    "SELECT FG FROM MEMORYFUNCTIONALTEST_DEFAULTS WHERE INUSE = 1 AND E1 = @Model ORDER BY ID",
+                    Essencore_db
+                );
 
-                cmd = new SqlCommand("pro_get_capacity_details", Essencore_db);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@stage", stageval);
-                cmd.Parameters.AddWithValue("@Product_Type", product_Model);
+                cmd.CommandType = CommandType.Text;
+
+                // Add parameter instead of string concatenation
+                cmd.Parameters.AddWithValue("@Model", product_Model);
+
                 adapter = new SqlDataAdapter(cmd);
                 dt = new DataTable();
                 adapter.Fill(dt);
+
                 if (dt.Rows.Count > 0)
                 {
                     foreach (DataRow dr in dt.Rows)
                     {
-                        listcapacity.Add(dr["capacity"].ToString());
+                        listcapacity.Add(dr["FG"].ToString());
                     }
                 }
+
                 return listcapacity;
             }
             catch (Exception ex)

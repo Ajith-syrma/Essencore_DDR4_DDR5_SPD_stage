@@ -1,4 +1,4 @@
-namespace K1_Stages
+namespace SPD_Stage
 {
     internal static class Program
     {
@@ -11,7 +11,7 @@ namespace K1_Stages
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
-            Application.Run(new K1_load());
+            Application.Run(new spd_load());
         }
     }
 }

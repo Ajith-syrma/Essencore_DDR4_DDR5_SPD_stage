@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35431.28
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "K1_Stages", "K1_Stages.csproj", "{637ADCC9-55BE-4BAF-A3BA-47AFE7E2E92F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SPD_Stage", "SPD_Stage.csproj", "{637ADCC9-55BE-4BAF-A3BA-47AFE7E2E92F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

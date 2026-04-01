@@ -1,6 +1,6 @@
-﻿namespace K1_Stages
+﻿namespace SPD_Stage
 {
-    partial class k_stage
+    partial class spd_stage
     {
         /// <summary>
         ///  Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(k_stage));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(spd_stage));
             lbl_filepathvalue = new Label();
             lbl_startinfo = new Label();
             pictureBox1 = new PictureBox();
@@ -211,7 +211,7 @@
             lbl_app_id.Name = "lbl_app_id";
             lbl_app_id.Size = new Size(101, 44);
             lbl_app_id.TabIndex = 4;
-            lbl_app_id.Text = "260";
+            lbl_app_id.Text = "202";
             lbl_app_id.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // lbl_hdr_app_id
@@ -254,9 +254,9 @@
             lblstagename.ForeColor = Color.White;
             lblstagename.Location = new Point(452, 8);
             lblstagename.Name = "lblstagename";
-            lblstagename.Size = new Size(68, 68);
+            lblstagename.Size = new Size(99, 68);
             lblstagename.TabIndex = 1;
-            lblstagename.Text = "K1";
+            lblstagename.Text = "SPD";
             // 
             // lbl_qty
             // 
@@ -364,7 +364,7 @@
             lbl_pcbserial.Text = "SCAN Serial No";
             lbl_pcbserial.TextAlign = ContentAlignment.MiddleCenter;
             // 
-            // k_stage
+            // spd_stage
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
@@ -385,8 +385,8 @@
             Controls.Add(lbl_startinfo);
             Controls.Add(lbl_filepathvalue);
             Controls.Add(pictureBox1);
-            Name = "k_stage";
-            Text = "K1";
+            Name = "spd_stage";
+            Text = "SPD";
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)pic_status).EndInit();
             app_name_lbl.ResumeLayout(false);

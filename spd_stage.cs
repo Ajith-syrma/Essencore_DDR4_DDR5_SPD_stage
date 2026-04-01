@@ -11,6 +11,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Design;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
@@ -22,14 +23,16 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Application = FlaUI.Core.Application;
 using Font = System.Drawing.Font;
 using Point = System.Drawing.Point;
-namespace K1_Stages
+namespace SPD_Stage
 {
-    public partial class k_stage : Form
+    public partial class spd_stage : Form
     {
         #region variable decl,dll,appconf
         //Declaration from  App config 
         DbConnection dbConnection = new DbConnection();
         SqlConnection SFCS_db = new SqlConnection(ConfigurationManager.AppSettings["SFCS"].ToString());
+        SqlConnection Essencore_db = new SqlConnection(ConfigurationManager.AppSettings["ESSENCORE"].ToString());
+        private Dictionary<string, FileState> _fileStates = new Dictionary<string, FileState>();
 
 
 
@@ -89,7 +92,8 @@ namespace K1_Stages
         public string stage = "";
         public string Gentype = "";
         private string Filename;
-        public string Log_filePath;
+        public string Log_filePath_Pass;
+        public string Log_filePath_Fail;
         public string product_Model;
         private string App_Name;
         private string App_Path;
@@ -102,7 +106,7 @@ namespace K1_Stages
         #endregion
 
         #region UI_components
-        public k_stage(string stage_name, string Prduct_model, string App_N, string App_Pth, string fg, string emp_id, string emp_name, string f_name, string App_logpath)
+        public spd_stage(string stage_name, string Prduct_model, string App_N, string App_Pth, string fg, string emp_id, string emp_name, string f_name, string App_logpath1,string App_logpath2)
         {
             InitializeComponent();
             //variable initialization from parameters and configuration
@@ -112,7 +116,8 @@ namespace K1_Stages
             App_Path = App_Pth;
             Fg = fg;
             Firmware_Name = f_name;
-            Log_filePath = App_logpath;
+            Log_filePath_Pass = App_logpath1;
+            Log_filePath_Fail = App_logpath2;
             //set form properties and event handlers
             this.MaximizeBox = false;
             lbl_filepathvalue.Enabled = false;
@@ -166,21 +171,7 @@ namespace K1_Stages
                 
 
                 var scannedData = "";
-
-                if (product_Model == "M.2")
-                {
-                    scannedData = txt_SN.Text.Trim().ToUpper();
-                }
-                else if (product_Model == "SSD_SATA")
-                {
-                    //scannedData = dbConnection.getpcbserialno(txt_SN.Text.Trim().ToUpper());
-                    scannedData = txt_SN.Text.Trim().ToUpper();
-                }
-                else
-                {
-                    scannedData = "1";
-                }
-
+                scannedData = txt_SN.Text.Trim().ToUpper();
                 if (!scannedData.StartsWith("ECH"))
                 {
                     Pcb_Serialno = string.Empty;
@@ -201,16 +192,13 @@ namespace K1_Stages
                             if (Check_Curr_Stage(Pcb_Serialno, lbl_app_id.Text, lblstagename.Text, boardonline))
                             {
                                 move_Formto_right();
-                                //MessageBox.Show("Please scan the serial Number on the DUT 0 of the MP Tool");
-                                if (App_Name== "SSDMP.exe")
-                                {
-                                    scan_serial_Mptool();
-                                }
+                                scan_serial_Mptool();
+
                                 
                             }
                             else
                             {
-                                move_Formto_left();
+                                move_Formto_center();
                                 txt_SN.Clear();
                                 MessageBox.Show("Please scan the Next serial Number on the SFCS Application");
                             }
@@ -276,23 +264,14 @@ namespace K1_Stages
         private void scan_serial_Mptool()
         {
             Thread.Sleep(1000);
-            //var textBoxes = mainWindow.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit));
-            //Thread.Sleep(1000);
-
-            //foreach (var tb in textBoxes)
-            //{
-            //    var textbox = tb.AsTextBox();
-
-            //    if (textbox.Text == "ESP")  //1231 for 3.0
-            //    {
-            //        MessageBox.Show($"AutomationId: {textbox.AutomationId}");
-            //        break;
-            //    }
-            //}
+            var Scanwindow = Retry.WhileNull(() => mainWindow.FindFirstDescendant(cf => cf.ByControlType(ControlType.Window)
+                                          .And(cf.ByName("Input Module Serial Number"))),
+                                             TimeSpan.FromSeconds(5)).Result;//  
+            var scantxtbx = Scanwindow.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)).ToList();
             try
             {
-                var textboxserial = mainWindow.FindFirstDescendant(cf =>
-                                                 cf.ByControlType(ControlType.Edit).And(cf.ByAutomationId("1231")));
+                var textboxserial = Scanwindow.FindFirstDescendant(cf =>
+                                                 cf.ByControlType(ControlType.Edit).And(cf.ByAutomationId("1513")));
 
                 if (textboxserial != null)
                 {
@@ -304,6 +283,8 @@ namespace K1_Stages
                     System.Threading.Thread.Sleep(100);
                     writestatusMessage($"Serial No {txt_SN.Text.Trim()} is scanned in Mp Tool", "capacity selected");
                     Fill_Response_Data($"Serial No {txt_SN.Text.Trim()} is selected in Mp Tool");
+                    System.Threading.Thread.Sleep(1500);
+                    SendKeys.SendWait("{ENTER}");
                 }
 
             }
@@ -313,6 +294,29 @@ namespace K1_Stages
             }
 
         }
+
+        //private void result_status_SPD()
+        //{
+        //    Thread.Sleep(1000);
+        //    var winf = mainWindow.FindAllDescendants(cf => cf.ByControlType(ControlType.Window)).ToList();
+        //    var resultwindow = Retry.WhileNull(() => mainWindow.FindFirstDescendant(cf => cf.ByControlType(ControlType.Window)
+        //                                  .And(cf.ByName("Verify SPD Data Result"))),
+        //                                     TimeSpan.FromSeconds(5)).Result;//  
+        //    var btns = resultwindow.FindAllDescendants(cf => cf.ByControlType(ControlType.Button)).ToList();
+        //    try
+        //    {
+        //        // Click the "Load" button (AutomationId: "1168")
+        //        var loadButton = btns.FirstOrDefault(b => b?.AutomationId == "32772");
+        //        loadButton?.WaitUntilClickable(TimeSpan.FromSeconds(2));
+        //        loadButton?.AsButton().Invoke();
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        MessageBox.Show($"Error:{ex} in Dut 0 Scan");
+        //    }
+
+        //}
 
 
         private void move_Formto_center()
@@ -387,16 +391,13 @@ namespace K1_Stages
             emp_id = employe_id;
             emp_name = employee_name;
             Filename = f;
-            Fill_Response_Data("K1 Stage Test");
+            Fill_Response_Data("SPD Stage Test");
 
-            string modelname = dbConnection.getmodel(capacity);
-            Gentype = dbConnection.getgentype(capacity);
-            //ssdmpFilePath = Gentype == "Gen4x4" ? ssdmpG4 : ssdmpFilePathG3;
-            ssdmpFilePath = Log_filePath;
+
             writestatusMessage("Start button clicked", "Application_start");
 
             Thread.Sleep(1000);
-            Spd_Automation(stage, capacity, Filename, emp_id, emp_name, modelname, Gentype, Appl_Name);
+            Spd_Automation(stage, capacity, Filename, emp_id, emp_name, product_Model, Appl_Name);
 
             this.Show();
             this.WindowState = FormWindowState.Normal;
@@ -414,12 +415,12 @@ namespace K1_Stages
         #endregion
 
         #region modeltypehandlerK3
-        public string Spd_Automation(string stageName, string capacity, string Filepath, string emp_id, string emp_name, string model, string Gentype, string Applic_Name)
+        public string Spd_Automation(string stageName, string capacity, string Filepath, string emp_id, string emp_name, string model,string Applic_Name)
         {
             try
             {
 
-                if (Applic_Name == "SSDMP.exe")
+                if (Applic_Name == "Ezspdset.exe")
                 {
                     // Initialize and start the SSDMP file monitor timer
                     fileMonitorTimer = new System.Windows.Forms.Timer
@@ -432,29 +433,42 @@ namespace K1_Stages
                     var app = Application.Launch(App_Path);
                     app.WaitWhileMainHandleIsMissing();
 
-                    //UI Automation SSDMP Tool 
+                    //UI Automation SSDMP Tool
+                    
                     using var automation = new UIA3Automation();
+                    Thread.Sleep(5000);
                     mainWindow = app.GetMainWindow(automation);
-                    if (mainWindow == null || !mainWindow.Name.StartsWith("SSDMP"))
+                    string mainwindow_name = mainWindow.Name;
+                    //for (int i = 0; i < 5; i++)
+                    //{
+                    if (mainWindow == null || (mainwindow_name != "DDR4 EZSPD Programmer V1.9.7.1 SYRMASGS" && mainwindow_name != "DDR5 EZSPD V1.5.7.1 SYRMASGS"))
                     {
                         MessageBox.Show("Main window not found or name mismatch for Gen3.");
                         writestatusMessage("SSDMP Window not found", "Window not found");
-                        return null;
+                        Thread.Sleep(1000);
+                        
                     }
-                    Fill_Response_Data("SSDMP MP Tool Started");
-                    writestatusMessage("SSDMP Window found", "Window found");
+                    //    else
+                    //    {
+                    //        writestatusMessage("SSDMP Window found", "Window found");
+                    //        break;
+                    //    }
+                    //}
+
+                    Fill_Response_Data("SPD write Tool Started");
+                    writestatusMessage("SPD Window found", "Window found");
                     var allButtons = mainWindow.FindAllDescendants(cf => cf.ByControlType(ControlType.Button)).ToList();
                     var allcombo = mainWindow.FindAllDescendants(cf => cf.ByControlType(ControlType.ComboBox)).ToList();
 
                     // Click the "Load" button (AutomationId: "1168")
-                    var loadButton = allButtons.FirstOrDefault(b => b?.AutomationId == "1168");
+                    var loadButton = allButtons.FirstOrDefault(b => b?.AutomationId == "32772");
                     loadButton?.WaitUntilClickable(TimeSpan.FromSeconds(2));
                     loadButton?.AsButton().Invoke();
 
                     // Wait and find "Open" dialog window under main window
                     var loadK1Window = Retry.WhileNull(() =>
                         mainWindow.FindFirstDescendant(cf => cf.ByControlType(ControlType.Window)
-                            .And(cf.ByName("Open"))),
+                            .And(cf.ByName("Load SPD Date File From Library"))),
                         TimeSpan.FromSeconds(5)).Result;// Wait for the "Open" dialog to appear with a timeout of 5 seconds
 
                     if (loadK1Window != null)
@@ -465,6 +479,7 @@ namespace K1_Stages
                             .And(cf.ByName("File name:")));
 
                         string filepathGen3 = Filepath;
+                        //string filepathGen3 = "ECH1ESN00017.spp4";
 
                         if (filePathEdit != null)
                         {
@@ -473,232 +488,29 @@ namespace K1_Stages
                             System.Threading.Thread.Sleep(100);
                             fpTextBox.Text = filepathGen3;
                         }
-                        Fill_Response_Data($"Firmware :{filepathGen3}");
+                        Fill_Response_Data($"Master File :{filepathGen3}");
 
-                        // Click "Open" button (AutomationId: "1")
-                        var openButton = loadK1Window.FindAllDescendants(cf => cf.ByControlType(ControlType.Button))
-                            .FirstOrDefault(e => e.AutomationId == "1");
-
-                        openButton?.WaitUntilClickable(TimeSpan.FromSeconds(2));
-                        openButton?.AsButton().Invoke();
-                        System.Threading.Thread.Sleep(500);
-
-                        // Select "Device" in ComboBox (AutomationId: "2112")
-                        var devicestationid = mainWindow.Name == "SSDMP 2.82.0.0_20240318_R_X64" ? "1040" : "2108";
-                        var MP_stationid = mainWindow.Name == "SSDMP 2.82.0.0_20240318_R_X64" ? "1043" : "2112";
-
-                        // Select "Device" in ComboBox (AutomationId: "2112")
-                        var comboBoxdevice = mainWindow.FindFirstDescendant(cf =>
-                            cf.ByControlType(ControlType.ComboBox).And(cf.ByAutomationId(devicestationid)));
-                        var cmbdevicecurval = comboBoxdevice.AsComboBox();
-
-                        var cmbdeviceval = cmbdevicecurval.AsTextBox().Text;
-
-                        if (cmbdeviceval != "RTS5766DL")
-                        {
-                            var combodevice = comboBoxdevice?.AsComboBox();
-                            combodevice?.Expand();
-                            System.Threading.Thread.Sleep(500);
-
-                            var itemToSelectdevice = combodevice?.Items?.FirstOrDefault(i => i.Text == "RTS5766DL");
-                            itemToSelectdevice?.Select();
-                            writestatusMessage("RTS5766DL option selected", "Device selected");
-                            System.Threading.Thread.Sleep(50);
-                        }
+                        //--- Click "Open" button (AutomationId: "1")
+                        //var allButtons1 = loadK1Window.FindAllDescendants(cf => cf.ByControlType(ControlType.Button)).ToList();
+                        //var openButton = allButtons.FirstOrDefault(b => b?.AutomationId == "1");
+                        //openButton?.WaitUntilClickable(TimeSpan.FromSeconds(2));
+                        //openButton?.AsButton().Invoke();
+                        //openButton?.WaitUntilClickable(TimeSpan.FromSeconds(2));
+                        //openButton?.AsButton().Invoke();
+                        //System.Threading.Thread.Sleep(500);
+                        Thread.Sleep(1000);
+                        SendKeys.SendWait("{ENTER}");
+                        var scanbtns = mainWindow.FindAllDescendants(cf => cf.ByControlType(ControlType.Button)).ToList();
+                        var scanbtn = scanbtns.FirstOrDefault(b => b?.AutomationId == "1019");//72,77,79,80,1127,1019,1130
+                        scanbtn?.WaitUntilClickable(TimeSpan.FromSeconds(2));
+                        scanbtn?.AsButton().Invoke();
 
 
-
-                        // Select "RDT" in ComboBox (AutomationId: "2112")
-                        var comboBoxElement = mainWindow.FindFirstDescendant(cf =>
-                            cf.ByControlType(ControlType.ComboBox).And(cf.ByAutomationId(MP_stationid)));
-
-                        var cmbk1curval = comboBoxElement.AsComboBox();
-
-                        var cmbk1val = cmbk1curval.AsTextBox().Text;
-
-                        var k1val = stageName == "K1" ? "RDT" :
-                                    stageName == "K2" ? "MP" :
-                                    stageName == "K3" ? "K3" : "0";
-
-                        //if (cmbk1val != k1val)
-                        //{
-                        //    var comboBox = comboBoxElement?.AsComboBox();
-                        //    comboBox?.Expand();
-                        //    System.Threading.Thread.Sleep(500);
-
-
-                        //    var itemToSelect = comboBox?.Items?.FirstOrDefault(i => i.Text == k1val);
-                        //    itemToSelect?.Select();
-                        //    System.Threading.Thread.Sleep(50);
-                        //    Mouse.Click();
-                        //    writestatusMessage($"stage name is {stageName} so {k1val} is selected", "Stage selected");
-                        //    System.Threading.Thread.Sleep(50);
-                        //}
-                        var comboBox = comboBoxElement?.AsComboBox();
-
-                        if (comboBox == null)
-                        {
-                            writestatusMessage("ComboBox not found or is null.", "Error");
-                            return string.Empty;
-                        }
-
-                        comboBox.Expand();
-                        System.Threading.Thread.Sleep(300); // Slight delay to allow items to appear
-
-                        var itemToSelect = comboBox.Items?.FirstOrDefault(i => i.Text.Equals(k1val, StringComparison.OrdinalIgnoreCase));
-
-                        if (itemToSelect != null)
-                        {
-                            itemToSelect.Select();
-                            System.Threading.Thread.Sleep(100);
-                            itemToSelect.Click();
-                            writestatusMessage($"Stage name is {stageName}, so '{k1val}' is selected.", "Stage selected");
-                            Fill_Response_Data($"Stage name is {stageName}, so '{k1val}' is selected.");
-                        }
-                        else
-                        {
-                            writestatusMessage($"Item '{k1val}' not found in ComboBox for stage '{stageName}'.", "Selection Failed");
-                        }
-
-                        // Edit textboxes for capacity and model (AutomationIds "1021" and "1025")
-                        var textboxMem = mainWindow.FindFirstDescendant(cf =>
-                            cf.ByControlType(ControlType.Edit).And(cf.ByAutomationId("1021")));
-                        var textboxMod = mainWindow.FindFirstDescendant(cf =>
-                            cf.ByControlType(ControlType.Edit).And(cf.ByAutomationId("1025")));
-
-                        if (textboxMem != null && textboxMod != null)
-                        {
-                            var memTextBox = textboxMem.AsTextBox();
-                            var modTextBox = textboxMod.AsTextBox();
-
-                            string memCurrentVal = memTextBox.Text;
-                            string modCurrentVal = modTextBox.Text;
-
-                            string expectedValue = filepathGen3.Contains("256GB") ? "256" :
-                                                   filepathGen3.Contains("512GB") ? "512" :
-                                                   filepathGen3.Contains("1TB") ? "1024" : "0";
-
-                            if (memCurrentVal != expectedValue)
-                            {
-                                memTextBox.Text = "";
-                                System.Threading.Thread.Sleep(100);
-                                memTextBox.Enter(expectedValue);
-                                writestatusMessage($"Capacity {expectedValue} is selected", "capacity selected");
-                                Fill_Response_Data($"Capacity {expectedValue} is selected");
-                            }
-
-                            modTextBox.Text = model;
-                            writestatusMessage($"The model value is{model}", "Model selected");
-                            Fill_Response_Data($"The model value is{model}");
-
-                        }
                     }
 
                     return "Completed";
                 }
-                else if (Applic_Name == "SM2268XT2_MPTool.exe")
-                {
-                    // Initialize and start the SM2268XT2_MPTool file monitor timer
-                    fileMonitorTimer = new System.Windows.Forms.Timer
-                    {
-                        Interval = 5000 // Check every 5 seconds
-                    };
-                    fileMonitorTimer.Tick += FileMonitorTimer_Tick;
-                    fileMonitorTimer.Start();
-                    StartAppWithCleanup(App_Path);
-                    var app = Application.Launch(App_Path);
-                    app.WaitWhileMainHandleIsMissing();
 
-                    //UI Automation for SM2268XT2_MPTool 
-
-                    using var automation = new UIA3Automation();
-                    mainWindow = app.GetMainWindow(automation);
-                    if (mainWindow == null || !mainWindow.Name.StartsWith("SM2268XT2 MPTool"))
-                    {
-                        MessageBox.Show("Main window not found or name mismatch for Gen4.");
-                        writestatusMessage("SM2268XT2 MPTool Window not found", "Window not found");
-                        return null;
-                    }
-                    Fill_Response_Data("SM2268XT2 MPTool Started");
-                    Thread.Sleep(1000);
-                    var parameterTab = mainWindow.FindFirstDescendant(cf => cf.ByControlType(ControlType.TabItem).And(cf.ByName("Parameter")));
-                    if (parameterTab != null)
-                    {
-                        parameterTab.Click();  // Works for Win32 tabs
-
-                    }
-                    else
-                    {
-                        MessageBox.Show("Parameter tab not found");
-                        writestatusMessage("Parameter tab not found", "Tab not found");
-                    }
-                    Thread.Sleep(500);
-
-                    var fileloadbtn = mainWindow.FindFirstDescendant(cf => cf.ByControlType(ControlType.Button).And(cf.ByAutomationId("657")));
-
-                    if (fileloadbtn != null)
-                    {
-                        fileloadbtn.WaitUntilClickable(TimeSpan.FromSeconds(2));
-                        fileloadbtn.Click();
-                    }
-                    else
-                    {
-                        MessageBox.Show("File open button not found");
-                        writestatusMessage("File open button not found", "Button not found");
-                    }
-
-                    // Wait and find "Open" dialog window under main window
-                    var loadK1Window = Retry.WhileNull(() => mainWindow.FindFirstDescendant(cf => cf.ByControlType(ControlType.Window).And(cf.ByName("Open"))), TimeSpan.FromSeconds(5)).Result;
-
-                    if (loadK1Window != null)
-                    {
-                        // Find "File name:" edit box in Open dialog
-                        var filePathEdit = loadK1Window.FindFirstDescendant(cf => cf.ByControlType(ControlType.Edit).And(cf.ByName("File name:")));
-
-                        string filepathGen4 = Filepath;
-
-                        if (filePathEdit != null)
-                        {
-                            var fpTextBox = filePathEdit.AsTextBox();
-                            fpTextBox.Text = "";
-                            System.Threading.Thread.Sleep(100);
-                            fpTextBox.Text = filepathGen4;
-                        }
-
-
-                        else
-                        {
-                            MessageBox.Show("File path in File load dialog box not found");
-                            writestatusMessage("File path in File load dialog box not found", "Text box Not found");
-
-                        }
-                        Fill_Response_Data($"Firmware :{filepathGen4}");
-
-
-                        var openButton = loadK1Window.FindFirstDescendant(cf => cf.ByControlType(ControlType.Button).And(cf.ByAutomationId("1")));
-
-                        openButton?.WaitUntilClickable(TimeSpan.FromSeconds(2));
-                        openButton?.AsButton().Invoke();
-                        System.Threading.Thread.Sleep(500); ;
-
-                        var TestTab = mainWindow.FindFirstDescendant(cf => cf.ByControlType(ControlType.TabItem).And(cf.ByName("Test"))
-                                                );
-                        if (TestTab != null)
-                        {
-                            TestTab.Click();  // Works for Win32 tabs
-                        }
-
-                        else
-                        {
-                            MessageBox.Show("File open btn in File load dialog box not found");
-                            writestatusMessage("File open btn in File load dialog box not found", "Button Not found");
-                        }
-                        Thread.Sleep(2000);
-
-
-                    }
-                    return "Completed";
-                }
                 else
                 {
                     //// This is for SSD_SATA Mp_Tools Need to check UI Automation but still can lauch the App
@@ -773,59 +585,71 @@ namespace K1_Stages
 
         private void FileMonitorTimer_Tick(object sender, EventArgs e)
         {
+            MonitorFile(Log_filePath_Pass,"Pass");
+            MonitorFile(Log_filePath_Fail,"Fail");
+        }
+
+        private void MonitorFile(string filePath, string status)
+        {
             try
             {
-
-                if (!File.Exists(ssdmpFilePath))
+                if (!File.Exists(filePath))
                     return;
 
-                var currentWriteTime = File.GetLastWriteTime(ssdmpFilePath);
+                var currentWriteTime = File.GetLastWriteTime(filePath);
 
-
-
-                // Only process the file if it's been modified since last time
-                if (currentWriteTime > _lastFileWriteTime)
+                if (!_fileStates.ContainsKey(filePath))
                 {
+                    _fileStates[filePath] = new FileState();
+                }
 
+                var state = _fileStates[filePath];
+
+                // Only process if modified
+                if (currentWriteTime > state.LastWriteTime)
+                {
                     try
                     {
-                        string Currenthash = GetFileHash(ssdmpFilePath);
-                        if (Currenthash != lastHash)
+                        string currentHash = GetFileHash(filePath);
+
+                        if (currentHash != state.LastHash)
                         {
-                            lastHash = Currenthash;
+                            state.LastHash = currentHash;
 
-                            EvaluateLastValidDUT(ssdmpFilePath, emp_id, emp_name, Gentype, capacity, stage, App_Name, App_Path, Firmware_Name, this);
-
+                            EvaluateLastValidDUT(
+                                filePath,
+                                emp_id, emp_name, Gentype,
+                                capacity, stage,
+                                App_Name, App_Path,
+                                Firmware_Name,status, this
+                            );
                         }
                         else
                         {
-                            Console.WriteLine("File timestamp changed, but content is the same.");
-                            writestatusMessage($"File timestamp changed, but content is the same", "File Timestamp");
+                            Console.WriteLine($"[{filePath}] Timestamp changed, content same.");
+                            writestatusMessage("File timestamp changed, but content is the same", "File Timestamp");
                             return;
                         }
 
-                        _lastFileWriteTime = currentWriteTime;
+                        state.LastWriteTime = currentWriteTime;
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        Console.WriteLine("File in use — will retry...");
-
+                        Console.WriteLine($"[{filePath}] File in use — will retry...");
+                        return;
                     }
 
-
-                    string content = File.ReadAllText(ssdmpFilePath);
-                    Console.WriteLine("File changed at " + currentWriteTime);
+                    string content = File.ReadAllText(filePath);
+                    Console.WriteLine($"File changed: {filePath} at {currentWriteTime}");
                     Console.WriteLine("Content:\n" + content);
-
-                    // Add your file processing logic here
                 }
-
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error reading file: " + ex.Message);
+                Console.WriteLine($"Error reading file {filePath}: " + ex.Message);
             }
         }
+
         static string GetFileHash(string path)
         {
             using (var md5 = System.Security.Cryptography.MD5.Create())
@@ -840,12 +664,12 @@ namespace K1_Stages
 
         public static void EvaluateLastValidDUT(string filePath, string emp_id, string emp_name,
                                               string Gtype, string fgno, string stage_N, string app_name, string app_path,
-                                              string firmware_name, k_stage currentStage)
+                                              string firmware_name,string File_status, spd_stage currentStage)
         {
 
 
             bool boardfail = true;
-            string status = string.Empty;
+            string status = File_status;
             string testTime = string.Empty;
             string model = string.Empty;
             string serial = string.Empty;
@@ -856,70 +680,25 @@ namespace K1_Stages
                 Console.WriteLine("Log file not found.");
                 return;
             }
-            if (app_name == "SM2268XT2_MPTool.exe")
+
+
+             serial = File.ReadLines(filePath)
+                                  .Where(line => !string.IsNullOrWhiteSpace(line))
+                                  .LastOrDefault()
+                                  ?.Trim();
+
+            if (string.IsNullOrEmpty(serial))
             {
-                string lastLine = File.ReadLines(filePath).LastOrDefault();
-                string pattern = @"^(\S+)\s+(\S+)\s+(\S+\s+\S+)\s+(\S+\s+\S+)\s+(\S+)\s+(\S+)\s+(.+)$";
-                var m = Regex.Match(lastLine, pattern);
-
-                if (!m.Success)
-                    return;
-                capacity = fgno; station = "K1";
-                string port = m.Groups[2].Value;
-                string start = m.Groups[3].Value;
-                string end = m.Groups[4].Value;
-                serial = m.Groups[5].Value.Trim();
-                model = m.Groups[6].Value.Trim();
-                status = m.Groups[7].Value.Trim();
-
-                DateTime startTime = DateTime.Parse(start);
-                DateTime endTime = DateTime.Parse(end);
-
-                double durationSeconds = (endTime - startTime).TotalSeconds;
-                testTime = durationSeconds.ToString();
-
-                Console.WriteLine($"Serial: {serial}, Status: {status}, Duration: {durationSeconds}s");
+                Console.WriteLine("No Serial Number blocks with result data found.");
+                return;
             }
-            else
-            {
-                string content = File.ReadAllText(filePath);
-                var matches = Regex.Matches(content, @"\*{8}\[DUT \d\].+?\*{8}([\s\S]*?)(?=\*{8}\[DUT|\Z)");
 
-                if (matches.Count == 0)
-                {
-                    Console.WriteLine("No DUT blocks found.");
-                    return;
-                }
 
-                string lastValidBlock = null;
-                for (int i = matches.Count - 1; i >= 0; i--)
-                {
-                    var block = matches[i].Groups[1].Value;
-
-                    if (block.Contains("Test time"))
-                    {
-                        lastValidBlock = block;
-                        break;
-                    }
-                }
-                if (string.IsNullOrEmpty(lastValidBlock))
-                {
-                    Console.WriteLine("No valid DUT blocks with result data found.");
-                    return;
-                }
-                string pattern = @"\b(Pass|Fail)\b(?:\s+\([^\)]+\))?\s+Test time:";
-                status = Regex.Match(lastValidBlock, pattern).Groups[1].Value.Trim();
-                testTime = Regex.Match(lastValidBlock, @"Test time:\s*(.+)").Groups[1].Value.Trim();
-                model = Regex.Match(lastValidBlock, @"Model name:\s*(.+)").Groups[1].Value.Trim();
-                serial = Regex.Match(lastValidBlock, @"Serial number:\s*(.+)").Groups[1].Value.Trim();
-                capacity = Regex.Match(lastValidBlock, @"Capacity:\s*(.+)").Groups[1].Value.Trim();
-                station = Regex.Match(lastValidBlock, @"Station:\s*(.+)").Groups[1].Value.Trim();
-            }
 
 
             DbConnection dbconnect = new DbConnection();
             var ser_len = serial.Length;
-            if ((ser_len == 14 || ser_len == 17) && (serial.StartsWith("ES") || (serial.StartsWith("EN"))))
+            if (ser_len == 8 && (serial.StartsWith("00")))
             {
                 //var stage_count = dbconnect.get_serial_dup(serial, model);
                 //bool checkstage = currentStage.Check_Curr_Stage(serial, currentStage.lbl_app_id.Text, currentStage.lblstagename.Text, currentStage.boardonline);
@@ -929,74 +708,64 @@ namespace K1_Stages
                     //    if (stage_count == "0" || stage_count == "Status not found")
                     //{
                     //dbconnect.DbConnect1(serial, model, capacity, station, testTime, status);
-                    dbconnect.DbConnect2(serial, model, capacity, station, testTime, status,currentStage.Pcb_Serialno);
 
+                    //dbconnect.DbConnect2(serial, model, capacity, station, testTime, status,currentStage.Pcb_Serialno);
+                    SendKeys.SendWait("{ENTER}");
                     var displayColor = status.Equals("Pass", StringComparison.OrdinalIgnoreCase) ? Color.Green : Color.Red;
-                    // Debug output
-                    //System.Diagnostics.Debug.WriteLine("---- Last Valid DUT Result ----");
-                    //System.Diagnostics.Debug.WriteLine($"status   : {status}");
-                    //System.Diagnostics.Debug.WriteLine($"test_time : {testTime}");
-                    //System.Diagnostics.Debug.WriteLine($"model    : {model}");
-                    //System.Diagnostics.Debug.WriteLine($"serial_no  : {serial}");
-                    //System.Diagnostics.Debug.WriteLine($"capacity : {capacity}");
-                    //System.Diagnostics.Debug.WriteLine($"station  : {station}");
+                    currentStage.Fill_Response_Data("----SPD_STAGE-Log File Data---");
+                    currentStage.Fill_Response_Data($"serial_no  : {serial} : {status}");
 
-                    currentStage.Fill_Response_Data("----K_STAGE-Log File Data---");
-                    currentStage.Fill_Response_Data($"status   : {status}");
-                    currentStage.Fill_Response_Data($"test_time : {testTime}");
-                    currentStage.Fill_Response_Data($"model    : {model}");
-                    currentStage.Fill_Response_Data($"serial_no  : {serial}");
-                    currentStage.Fill_Response_Data($"capacity : {capacity}");
-                    currentStage.Fill_Response_Data($"station  : {station}");
 
 
                     if (status.Equals("Pass", StringComparison.OrdinalIgnoreCase))
                     {
                         //var qc = new k_stage(stage_N, Gtype,app_name,app_path,fgno,emp_id,emp_name,firmware_name, filePath);
                         boardfail = false;
-                        currentStage.SQL_Upload(serial, boardfail, "Passed at K1");
-                        currentStage.lbl_result.Text = $"Serial no: {serial} \n Pass in K1 stage";
+                        currentStage.SQL_Upload(serial, boardfail, "Passed at SPD");
+                        currentStage.lbl_result.Text = $"Serial no: {serial} \n Pass in SPD stage";
                         currentStage.lbl_result.BackColor = Color.Green;
                         currentStage.lbl_result.ForeColor = Color.White;
                         currentStage.txt_SN.Clear();
-                        currentStage.Fill_Response_Data($"Serial no: {serial} is Pass in K1 stage");
-                        popup.ShowDialogMessage($"{serial} -- {status} at K1", displayColor, Color.White, false);
-                        writestatusMessage($"(Serial No: {serial}-- Capacity: {capacity} is Pass in K1", "Board status");
-                        currentStage.Fill_Response_Data($"(Serial No: {serial}-- Capacity: {capacity} is Pass in K1");
+                        currentStage.Fill_Response_Data($"Serial no: {serial} is Pass in SPD stage");
+                        popup.ShowDialogMessage($"{serial} -- {status} at SPD", displayColor, Color.White, false);
+                        writestatusMessage($"(Serial No: {serial}-- is Pass in SPD", "Board status");
+                        currentStage.Fill_Response_Data($"(Serial No: {serial}-- is Pass in SPD");
+                        currentStage.move_Formto_center();
 
-                        if (currentStage.App_Name == "SM2268XT2_MPTool.exe")
-                        {
-                            currentStage.move_Formto_center();
-                        }
-                        else
-                        {
-                            currentStage.move_Formto_left();
-                        }
+                        //if (currentStage.App_Name == "SM2268XT2_MPTool.exe")
+                        //{
+                        //    currentStage.move_Formto_center();
+                        //}
+                        //else
+                        //{
+                        //    currentStage.move_Formto_left();
+                        //}
 
-                            //currentStage.qcstage_validation(serial, capacity, emp_id, emp_name);
-                            return;
+                        //currentStage.qcstage_validation(serial, capacity, emp_id, emp_name);
+                        return;
                     }
                     else
                     {
                         boardfail = true;
-                        currentStage.SQL_Upload(serial, boardfail, "Failed at K1");
-                        currentStage.lbl_result.Text = $"Serial no: {serial} \n FAIL in K1 stage";
+                        currentStage.SQL_Upload(serial, boardfail, "Failed at SPD");
+                        currentStage.lbl_result.Text = $"Serial no: {serial} \n FAIL in SPD stage";
                         currentStage.lbl_result.BackColor = Color.Red;
                         currentStage.lbl_result.ForeColor = Color.White;
                         currentStage.txt_SN.Clear();
-                        currentStage.Fill_Response_Data($"Serial no: {serial} is FAIL in K1 stage");
-                        popup.ShowDialogMessage($"{serial} -- {status} at K1", displayColor, Color.White, false);
-                        writestatusMessage($"(Serial No: {serial}-- Capacity: {capacity} is fail in K1", "Board status");
+                        currentStage.Fill_Response_Data($"Serial no: {serial} is FAIL in SPD stage");
+                        popup.ShowDialogMessage($"{serial} -- {status} at SPD", displayColor, Color.White, false);
+                        writestatusMessage($"(Serial No: {serial}--is fail in SPD", "Board status");
                         //var instance = new k_stage(stage_N, Gtype, app_name, app_path, fgno, emp_id, emp_name, filePath, firmware_name);
+                        currentStage.move_Formto_center();
 
-                        if (currentStage.App_Name == "SM2268XT2_MPTool.exe")
-                        {
-                            currentStage.move_Formto_center();
-                        }
-                        else
-                        {
-                            currentStage.move_Formto_left();
-                        }
+                        //if (currentStage.App_Name == "SM2268XT2_MPTool.exe")
+                        //{
+                        //    currentStage.move_Formto_center();
+                        //}
+                        //else
+                        //{
+                        //    currentStage.move_Formto_left();
+                        //}
 
                     }
 
@@ -1581,7 +1350,7 @@ namespace K1_Stages
                 Directory.CreateDirectory(systemPath);
             }
 
-            string StatusLog = String.Format(@"{0}\{1}.txt", systemPath, "K1_Logs");
+            string StatusLog = String.Format(@"{0}\{1}.txt", systemPath, "SPD_Logs");
             using (StreamWriter statLogs = new StreamWriter(StatusLog, true))
             {
                 statLogs.WriteLine("--------------------------------------------------------------------------------------------------------------------" + Environment.NewLine);
@@ -1861,6 +1630,50 @@ namespace K1_Stages
 
         private void SQL_Upload(string Sno, bool boardfail, string Result_Remarks)
         {
+
+            try
+            {
+                Essencore_db.Close();
+                SqlCommand cmd = new SqlCommand(
+                    "INSERT INTO PROD_SPDWRITEDATA VALUES (" +
+                    "'Essencore'," +
+                    "'" + Fg + "'," +
+                    "'RAM'," +
+                    "'" + product_Model + "'," +
+                    "'" + infosfromboard[0] + "'," +
+                    "'" + Pcb_Serialno + "'," +
+                    "'" + Sno + "'," +
+                    "" + (boardonline ? 1 : 0) + "," +
+                    "'Serial to Write : " + Sno + ",Year to Write : " + "yearinfofromprint" + "'," +
+                    "'Reverse Sno : " + "0" + ", Manf Sno : " + "reverseorder" + " .'," +
+                    "'" + "filenamesofspd" + "'," +
+                    "'" + "filenamesofspd" + "'," +
+                    "'" + (boardfail ? "FAIL" : "PASS") + "'," +
+                    "'" + Result_Remarks + "'," +
+                    "FORMAT(CURRENT_TIMESTAMP,'dd-MM-yyyy HH:mm:ss')," +
+                    "'" + emp_id + "'," +
+                    
+                    "HOST_NAME()," +
+                    "'','','','','')",
+                    Essencore_db);
+
+                if (Essencore_db.State == ConnectionState.Closed)
+                    Essencore_db.Open();
+
+                cmd.ExecuteNonQuery();
+                Essencore_db.Close();
+                Fill_Response_Data("SQL Report Success. - SFCS Dashboard");
+            }
+            catch (Exception ex)
+            {
+                Update_Error_in_Server("Exception", "ERR-SQL-02", ex.Message.ToString(),
+                    "SFCS Dashboard", "PCBA:" + Pcb_Serialno +
+                    ",Workorder:" + infosfromboard[0] + "Emp_id :" + lblemp_id.Text + ",CustomerNo:" + Sno + ".");
+                lbl_result.Text += "SFCS Dashboard Failed.";
+                lbl_result.BackColor = Color.Red;
+                lbl_result.ForeColor = Color.Yellow;
+                Fill_Response_Data("SQL Report Failed. - SFCS Dashboard");
+            }
 
 
             try
