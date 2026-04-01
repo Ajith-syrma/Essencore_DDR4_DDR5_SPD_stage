@@ -1360,10 +1360,7 @@ namespace SPD_Stage
                 statLogs.Close();
             }
         }
-
         #endregion
-
-
 
 
         #region SFCS_DATA

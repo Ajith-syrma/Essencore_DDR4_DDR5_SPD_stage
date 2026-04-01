@@ -93,7 +93,7 @@ namespace SPD_Stage
                     {
                         System.IO.Directory.CreateDirectory(Logsbkppath);
                     }
-                    if (!Directory.Exists(Master_FilePath))
+                    if (!File.Exists(Master_FilePath))
                     {
                         MessageBox.Show($"{Master_FilePath}--Not Found\n  Please Check the network or File Path", "File Path Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return false;
@@ -128,7 +128,7 @@ namespace SPD_Stage
                     {
                         System.IO.Directory.CreateDirectory(Logsbkppath);
                     }
-                    if (!Directory.Exists(Master_FilePath))
+                    if (!File.Exists(Master_FilePath))
                     {
                         MessageBox.Show($"{Master_FilePath}--Not Found\n  Please Check the network or File Path", "File Path Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return false;
@@ -195,62 +195,7 @@ namespace SPD_Stage
             }
         }
 
-        //private void cmbcapacity_SelectedIndexChanged(object sender, EventArgs e)
-        //{
 
-        //    if (suppressCapacityEvent) return;
-        //    cmb_capacity.Enabled = false;
-        //    string stage = cmb_stage.Text;
-        //    string capacity = cmb_capacity.Text;
-        //    filepath = dbConnection.GetFilePathdetail(lbl_stage_load.Text, cmb_capacity.Text);
-        //    if (!string.IsNullOrEmpty(filepath) || filepath != "1")
-        //    {
-
-        //        lbl_filepathvalue.Enabled = false;
-        //        lbl_filepathvalue.Visible = true;
-        //        lbl_filepathvalue.Text = $"File Name :{filepath}";
-
-        //        lbl_startinfo.Enabled = false;
-        //        lbl_startinfo.Visible = true;
-        //        lbl_startinfo.Text = "Please validate and Press the start Button ";
-        //    }
-        //    else
-        //    {
-        //        MessageBox.Show($"Filepath not available for {capacity} at {stage}");
-        //    }
-        //}
-
-        //public string GetFilePathdetail(string stage, string capacity)
-        //{
-
-        //    try
-        //    {
-        //        if (!System.IO.File.Exists(CONFIG_MASTERFILEPATH + "\\" + capacity + ".spp4"))
-        //        {
-        //            MessageBox.Show(
-        //                "No Master .spp4 File is available for this FG " + capacity +
-        //                " in the folder " + CONFIG_MASTERFILEPATH,
-        //                "No Master spp4 File",
-        //                MessageBoxButtons.OK,
-        //                MessageBoxIcon.Information
-        //            );
-                    
-        //            cmb_capacity.SelectedIndex = 0;
-        //            lbl_app_id.Focus();
-        //            this.Refresh();
-                   
-        //        }
-        //        else
-        //        {
-        //            Fill_Response_Data("Master File Available");
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return string.Empty;
-        //        MessageBox.Show("Error : " + ex.Message.ToString());
-        //    }
-        //}
 
         private void btn_start_Click(object sender, EventArgs e)
         {
@@ -284,7 +229,6 @@ namespace SPD_Stage
                 cmb_capacity.Enabled = true;
                 cmb_stage.Enabled = true;
             }
-
 
         }
 
